@@ -61,6 +61,26 @@ PRIVILEGED = {
 }
 
 
+def cap_reconnect_delay(max_seconds: float) -> None:
+    """Stop discord.py from waiting many minutes between reconnect attempts.
+
+    Its built-in backoff doubles up to about 17 minutes. After a home internet outage that
+    leaves the bot offline long after the connection is back. Failed attempts are only a
+    DNS lookup, so retrying at most every `max_seconds` costs nothing.
+    """
+    import discord.backoff
+    import discord.client
+    import discord.voice_state
+
+    class CappedBackoff(discord.backoff.ExponentialBackoff):
+        def delay(self) -> float:
+            return min(max(super().delay(), 2.0), max_seconds)
+
+    discord.client.ExponentialBackoff = CappedBackoff
+    if hasattr(discord.voice_state, "ExponentialBackoff"):
+        discord.voice_state.ExponentialBackoff = CappedBackoff
+
+
 def build_intents(cfg: Config) -> discord.Intents:
     intents = discord.Intents.none()
     intents.guilds = True
@@ -222,6 +242,34 @@ def acquire_lock(path: Path):
     return handle
 
 
+async def refused_intents(token: str) -> set[str]:
+    """Ask Discord which privileged intents are switched off for this bot (one small request).
+
+    Knowing this before connecting avoids a doomed first connection attempt, which costs
+    about a minute at every start. Returns an empty set if the answer cannot be fetched.
+    """
+    flag_bits = {"members": (1 << 14) | (1 << 15), "message_content": (1 << 18) | (1 << 19),
+                 "presences": (1 << 12) | (1 << 13)}
+    try:
+        timeout = aiohttp.ClientTimeout(total=10)
+        headers = {"Authorization": f"Bot {token}", "User-Agent": "DiscordBot (https://github.com/Rapptz/discord.py, 2.7)"}
+        async with aiohttp.ClientSession(timeout=timeout, headers=headers) as session:
+            async with session.get("https://discord.com/api/v10/applications/@me") as response:
+                if response.status != 200:
+                    return set()
+                flags = int((await response.json()).get("flags", 0))
+    except (aiohttp.ClientError, asyncio.TimeoutError, OSError, ValueError):
+        return set()
+    return {name for name, bits in flag_bits.items() if not flags & bits}
+
+
+def disable_blocked_modules(cfg: Config, refused: set[str]) -> list[str]:
+    """Switch off (for this run) every enabled module that needs an intent Discord refuses."""
+    blocked = [m for m in cfg.enabled_modules if set(MODULE_INTENTS.get(m, ())) & refused]
+    cfg.disabled.update(blocked)
+    return blocked
+
+
 # ---------------------------------------------------------------------- run modes
 async def run_bot(cfg: Config) -> int:
     token = cfg.token
@@ -311,6 +359,8 @@ def main() -> int:
         return EXIT_CONFIG
     setup_logging(cfg.data_dir / "logs", cfg.get("bot.log_level", "INFO"), bool(cfg.get("bot.voice_debug", False)))
 
+    cap_reconnect_delay(float(cfg.get("bot.max_reconnect_seconds", 30)))
+
     lock = acquire_lock(cfg.data_dir / "bot.lock")
     if lock is None:
         print("Another copy of the bot is already running with this data folder. Close it first.")
@@ -318,13 +368,22 @@ def main() -> int:
     try:
         if args.check:
             return asyncio.run(run_check(cfg))
+        fallback = bool(cfg.get("bot.start_without_intents", True))
+        if fallback:
+            refused = asyncio.run(refused_intents(cfg.token))
+            blocked = disable_blocked_modules(cfg, refused)
+            if blocked:
+                log.warning(
+                    "Not switched on in the Developer Portal: %s. Starting WITHOUT these modules: %s. "
+                    "Enable the intents (Bot page > Privileged Gateway Intents > Save Changes) and restart.",
+                    ", ".join(PRIVILEGED[n] for n in sorted(refused) if n in PRIVILEGED and n != "presences"),
+                    ", ".join(blocked))
         code = asyncio.run(run_bot(cfg))
         if code == NEEDS_INTENTS:
-            # Run with what Discord allows instead of refusing to start at all.
-            blocked = [m for m in cfg.enabled_modules if set(MODULE_INTENTS.get(m, ())) & set(PRIVILEGED)]
-            if not blocked or not bool(cfg.get("bot.start_without_intents", True)):
+            # The pre-check could not tell (no answer from Discord): fall back the slow way.
+            blocked = disable_blocked_modules(cfg, set(PRIVILEGED))
+            if not blocked or not fallback:
                 return EXIT_CONFIG
-            cfg.disabled.update(blocked)
             log.warning("Starting WITHOUT these modules until the intents are enabled: %s", ", ".join(blocked))
             code = asyncio.run(run_bot(cfg))
             if code == NEEDS_INTENTS:
