@@ -53,6 +53,52 @@ class System(commands.Cog):
         embed.add_field(name="ffmpeg", value="found" if proc.which("ffmpeg") else "missing")
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
+    # ---- server settings shared by every module ----
+    config = app_commands.Group(name="config", description="Server settings for the bot", guild_only=True,
+                                default_permissions=discord.Permissions(manage_guild=True))
+
+    @config.command(name="log-channel", description="Choose where moderation, raid and ticket logs are posted.")
+    @app_commands.describe(channel="Leave empty to switch logging off")
+    @app_commands.checks.has_permissions(manage_guild=True)
+    async def config_log(self, interaction: discord.Interaction, channel: discord.TextChannel | None = None) -> None:
+        settings = self.bot.settings  # type: ignore[attr-defined]
+        if channel is None:
+            await settings.delete(interaction.guild_id, "log_channel")
+            await interaction.response.send_message("Logging switched off.", ephemeral=True)
+            return
+        perms = channel.permissions_for(interaction.guild.me)
+        if not (perms.view_channel and perms.send_messages and perms.embed_links):
+            await interaction.response.send_message(
+                f"I need View Channel, Send Messages and Embed Links in {channel.mention} first.", ephemeral=True)
+            return
+        await settings.set(interaction.guild_id, "log_channel", channel.id)
+        await interaction.response.send_message(f"Logs will be posted in {channel.mention}.", ephemeral=True)
+
+    @config.command(name="staff-role", description="Add or remove a role that counts as staff for bot commands.")
+    @app_commands.checks.has_permissions(manage_guild=True)
+    async def config_staff(self, interaction: discord.Interaction, role: discord.Role) -> None:
+        settings = self.bot.settings  # type: ignore[attr-defined]
+        roles = list(await settings.get(interaction.guild_id, "staff_roles", []))
+        if role.id in roles:
+            roles.remove(role.id)
+            verb = "is no longer"
+        else:
+            roles.append(role.id)
+            verb = "is now"
+        await settings.set(interaction.guild_id, "staff_roles", roles)
+        await interaction.response.send_message(f"{role.mention} {verb} a staff role.", ephemeral=True,
+                                                allowed_mentions=discord.AllowedMentions.none())
+
+    @config.command(name="show", description="Show this server's bot settings.")
+    @app_commands.checks.has_permissions(manage_guild=True)
+    async def config_show(self, interaction: discord.Interaction) -> None:
+        data = await self.bot.settings.all(interaction.guild_id)  # type: ignore[attr-defined]
+        if not data:
+            await interaction.response.send_message("Nothing has been configured yet.", ephemeral=True)
+            return
+        lines = [f"`{key}` = `{str(value)[:80]}`" for key, value in sorted(data.items())]
+        await interaction.response.send_message("\n".join(lines)[:2000], ephemeral=True)
+
     @app_commands.command(description="Owner: re-upload slash commands to Discord.")
     @app_commands.default_permissions(administrator=True)
     @owner_only()

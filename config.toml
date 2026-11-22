@@ -27,15 +27,16 @@ extra_intents = []
 
 [modules]
 # true = load the module. false = the file is never imported, so it costs zero RAM.
-# Modules marked "not built yet" are added in later phases; leave them false until then.
+# antiraid, antispam, tickets and utility need "Server Members Intent" and/or
+# "Message Content Intent" switched on in the Discord Developer Portal (Bot page).
 music      = true    # local music library, queue, playlists, optional YouTube
-video      = false   # not built yet
-antiraid   = false   # not built yet
-antispam   = false   # not built yet
-tickets    = false   # not built yet
-rsvp       = false   # not built yet
-moderation = false   # not built yet
-utility    = false   # not built yet
+video      = true    # audio from local video files, short clips (needs music)
+antiraid   = true    # join-rate detection, lockdown, verification button
+antispam   = true    # message rate, duplicates, mentions, invites, escalation
+tickets    = true    # ticket panel, private channels, transcripts
+rsvp       = true    # events with Going / Maybe / No buttons and reminders
+moderation = true    # warn, timeout, kick, ban, purge, history
+utility    = true    # welcome/leave, auto-role, reaction roles, message logs, /help
 
 [music]
 # Folders that hold your music. Sub-folders are included. Use forward slashes.
@@ -82,3 +83,61 @@ cache_dir = "data/cache"      # downloaded audio is kept here and reused
 cache_max_mb = 1024           # oldest unused files are deleted above this size
 max_track_minutes = 180
 ytdlp_args = []               # extra yt-dlp options, e.g. ["--js-runtimes", "node"]
+
+[video]
+# Folders with video files. /video play uses their audio; /video clip posts a short piece.
+# Bots cannot stream video into a voice channel; Discord does not offer that to bots.
+library_dirs = []
+extensions = [".mp4", ".mkv", ".webm", ".avi", ".mov", ".m4v"]
+clip_max_seconds = 60         # making a clip uses a full CPU core while it runs
+clip_height = 480
+clip_timeout_seconds = 300
+
+[antispam]
+message_limit = 6             # more than this many messages ...
+message_window = 8            # ... within this many seconds = spam
+duplicate_limit = 4           # the same text this many times ...
+duplicate_window = 30         # ... within this many seconds
+mention_limit = 6             # user/role mentions in one message
+emoji_limit = 15              # emoji in one message
+caps_percent = 80             # percent capital letters ...
+caps_min_length = 20          # ... in messages at least this long
+block_invites = true          # Discord invite links
+block_links = false           # every link except allowed_domains
+allowed_domains = ["youtube.com", "youtu.be", "tenor.com", "giphy.com"]
+delete_messages = true
+# What happens on strike 1, 2, 3 ... (the last entry repeats). warn, timeout, kick or ban.
+escalation = ["warn", "timeout", "timeout", "kick", "ban"]
+timeout_minutes = 10
+strike_decay_minutes = 60     # strikes are forgotten after this long without spam
+# Members with Manage Messages are never filtered. Add more exceptions in Discord with
+# /antispam ignore-role and /antispam ignore-channel.
+
+[antiraid]
+join_limit = 8                # this many joins ...
+join_window = 10              # ... within this many seconds starts a lockdown
+lockdown_minutes = 10         # automatic unlock; 0 = stay locked until /unlock
+raid_action = "kick"          # for accounts joining during lockdown: kick, timeout or none
+min_account_age_hours = 0     # 0 = off. Accounts younger than this are handled on join
+age_action = "kick"           # kick, timeout or flag (log only)
+new_member_minutes = 10       # members this new who post an invite or mass-mention ...
+new_member_mention_limit = 4
+new_member_action = "ban"     # ... get this: ban, kick, timeout or none
+timeout_minutes = 60
+
+[tickets]
+max_open_per_user = 1
+opener_can_close = true
+transcript_format = "html"    # html, text or both. Saved in data/transcripts/
+transcript_max_messages = 2000
+dm_transcript = true          # send the transcript to the person who opened the ticket
+delete_delay_seconds = 5
+
+[rsvp]
+anyone_can_create = false     # false = only staff can create events
+close_minutes_after_start = 0 # keep the buttons open this long after the start time
+refresh_seconds = 2           # the event message is edited at most this often
+
+[utility]
+log_deleted_messages = true   # needs /config log-channel
+log_edited_messages = true

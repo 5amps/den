@@ -109,3 +109,18 @@ def describe_error(error: BaseException) -> tuple[str, bool]:
     if isinstance(error, OSError) and error.errno == errno.ENOSPC:
         return "The disk is full. Free some space and try again.", True
     return "Something went wrong. The error was written to the log.", True
+
+
+async def guarded(interaction: discord.Interaction, coro) -> None:
+    """Run a button/menu handler; show any failure to the user the same way slash commands do.
+
+    Component callbacks do not pass through the command tree's error handler, so without
+    this a failed button press would only show Discord's generic "interaction failed".
+    """
+    try:
+        await coro
+    except Exception as exc:  # noqa: BLE001
+        message, is_bug = describe_error(exc)
+        if is_bug:
+            log.error("Component handler failed", exc_info=exc)
+        await reply(interaction, message)

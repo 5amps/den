@@ -32,7 +32,8 @@ else
 fi
 
 echo "[2/4] Installing dependencies (needs internet)..."
-if ! .venv/bin/python -m pip install --disable-pip-version-check --quiet -r requirements.txt; then
+# REQUIREMENTS=requirements-lite.txt ./setup.sh   installs without the voice libraries
+if ! .venv/bin/python -m pip install --disable-pip-version-check --quiet -r "${REQUIREMENTS:-requirements.txt}"; then
     echo "[X] Dependency install failed. Check your internet connection and run ./setup.sh again."
     exit 1
 fi
