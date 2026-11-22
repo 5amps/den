@@ -13,6 +13,10 @@ from .proc import ProcessError
 log = logging.getLogger("checks")
 
 
+class UserError(app_commands.CheckFailure):
+    """An expected problem whose message is shown to the user as-is (not logged as a bug)."""
+
+
 async def reply(interaction: discord.Interaction, content: str | None = None, *,
                 ephemeral: bool = True, **kwargs) -> None:
     """Answer an interaction whether or not it was already acknowledged. Never raises."""

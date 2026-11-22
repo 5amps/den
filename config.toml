@@ -28,11 +28,57 @@ extra_intents = []
 [modules]
 # true = load the module. false = the file is never imported, so it costs zero RAM.
 # Modules marked "not built yet" are added in later phases; leave them false until then.
-music      = false   # phase b - not built yet
-video      = false   # phase b - not built yet
-antiraid   = false   # phase c - not built yet
-antispam   = false   # phase c - not built yet
-tickets    = false   # phase d - not built yet
-rsvp       = false   # phase e - not built yet
-moderation = false   # phase f - not built yet
-utility    = false   # phase f - not built yet
+music      = true    # local music library, queue, playlists, optional YouTube
+video      = false   # not built yet
+antiraid   = false   # not built yet
+antispam   = false   # not built yet
+tickets    = false   # not built yet
+rsvp       = false   # not built yet
+moderation = false   # not built yet
+utility    = false   # not built yet
+
+[music]
+# Folders that hold your music. Sub-folders are included. Use forward slashes.
+# Example: library_dirs = ["C:/Users/you/Music", "D:/Songs"]
+library_dirs = []
+
+# File types treated as music. Video files listed here are played as audio only.
+extensions = [".mp3", ".flac", ".ogg", ".opus", ".m4a", ".wav", ".aac", ".wma", ".mp4"]
+
+# Look for new/removed files every time the bot starts. Turn off for huge libraries on
+# slow disks and use /rescan_library by hand instead.
+scan_on_start = true
+
+# Volume for a server that never set one. 100 lets Opus files pass through untouched.
+default_volume = 100
+
+# Audio quality for files that must be converted (mp3, flac, ...). 64 = lighter, 128 = best.
+bitrate_kbps = 96
+
+# Opus encoder effort, 0-10. Lower = less CPU, slightly lower quality. 5 suits a weak CPU.
+opus_complexity = 5
+
+# Send Opus files straight to Discord without re-encoding (lowest CPU). Leave on.
+passthrough = true
+
+max_queue = 500
+
+# Leave the voice channel after this many minutes with nothing playing or nobody listening.
+# 0 = stay forever.
+idle_disconnect_minutes = 5
+
+# After a restart or crash, continue the queue if people are still in the voice channel.
+resume_on_start = true
+
+# Post "Now playing" in the text channel on every track change.
+announce_tracks = false
+
+# --- YouTube (optional, off by default) ---
+# Downloading from YouTube is against YouTube's Terms of Service. Keep it for personal use
+# in a private server. It needs yt-dlp installed and breaks whenever YouTube changes
+# something, until yt-dlp is updated (pip install -U yt-dlp).
+youtube = false
+cache_dir = "data/cache"      # downloaded audio is kept here and reused
+cache_max_mb = 1024           # oldest unused files are deleted above this size
+max_track_minutes = 180
+ytdlp_args = []               # extra yt-dlp options, e.g. ["--js-runtimes", "node"]
