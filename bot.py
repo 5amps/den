@@ -309,7 +309,7 @@ def main() -> int:
     except ConfigError as exc:
         print(f"CONFIG ERROR: {exc}")
         return EXIT_CONFIG
-    setup_logging(cfg.data_dir / "logs", cfg.get("bot.log_level", "INFO"))
+    setup_logging(cfg.data_dir / "logs", cfg.get("bot.log_level", "INFO"), bool(cfg.get("bot.voice_debug", False)))
 
     lock = acquire_lock(cfg.data_dir / "bot.lock")
     if lock is None:

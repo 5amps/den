@@ -294,6 +294,7 @@ Database tables: `guild_settings`, `jobs` (core); `library`, `playlists`, `playl
 | `Another copy of the bot is already running` | Close the other window, or end `python.exe` in Task Manager. |
 | `Python was not found` | Install Python 3.11+ from python.org and tick "Add python.exe to PATH". |
 | `ffmpeg not found` / music is silent | Windows: `winget install Gyan.FFmpeg`, reopen the window. Linux: `sudo apt install ffmpeg`. |
+| Bot joins voice and says "Now playing" but nobody hears anything | Run `/status` and read the **Voice** line. `E2EE ... NOT ready` means the `davey` library is too new for discord.py: run `.venv\Scripts\python.exe -m pip install "davey<0.2"` and restart. If it says `ready`, the problem is on the listener's side: run `tools\audio-check.ps1` to see whether Discord is producing sound in Windows. |
 | `/play` finds nothing | Set `music.library_dirs` in `config.toml`, restart or run `/rescan_library`. |
 | "Skipping ...: ffmpeg could not read it" | The file is damaged or not really audio. |
 | YouTube lookups fail | Update yt-dlp: `pip install -U yt-dlp`. Newer versions may need `ytdlp_args = ["--js-runtimes", "node"]`. |

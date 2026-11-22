@@ -22,6 +22,10 @@ data_dir = "data"
 # DEBUG, INFO, WARNING or ERROR.
 log_level = "INFO"
 
+# Write every step of the voice connection to the log, plus a health report a few seconds
+# into each track. Only for tracking down "the bot plays but nobody hears it".
+voice_debug = false
+
 # If Discord refuses the privileged intents (not switched on in the Developer Portal),
 # start anyway without the modules that need them, instead of not starting at all.
 start_without_intents = true

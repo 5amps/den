@@ -1,3 +1,8 @@
-# The only Python dependency. The [voice] extra adds PyNaCl and davey (voice encryption).
+# The only direct Python dependency. The [voice] extra adds PyNaCl and davey (voice encryption).
 # Pinned to the 2.7 line, which supports Discord's end-to-end encrypted voice (DAVE).
 discord.py[voice]>=2.7.1,<2.8
+
+# davey 0.2.0 changed how encryption keys are activated. discord.py 2.7.1 was written for
+# 0.1.x and never activates them with 0.2.0, so the bot connects and "plays" but everyone
+# hears silence. Keep this pin until a discord.py release supports davey 0.2.
+davey>=0.1.7,<0.2

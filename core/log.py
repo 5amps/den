@@ -9,7 +9,7 @@ from pathlib import Path
 FORMAT = "%(asctime)s %(levelname)-7s %(name)s: %(message)s"
 
 
-def setup_logging(log_dir: Path, level: str = "INFO") -> None:
+def setup_logging(log_dir: Path, level: str = "INFO", voice_debug: bool = False) -> None:
     # A full disk must not take the bot down through the logging module.
     logging.raiseExceptions = False
 
@@ -38,3 +38,7 @@ def setup_logging(log_dir: Path, level: str = "INFO") -> None:
     logging.getLogger("discord.gateway").setLevel(logging.WARNING)
     logging.getLogger("discord.client").setLevel(logging.WARNING)
     logging.getLogger("discord.http").setLevel(logging.WARNING)
+    if voice_debug:
+        # Full detail of the voice handshake and encryption setup, for "bot is silent" problems.
+        for name in ("discord.voice_state", "discord.voice_client", "discord.gateway", "discord.player"):
+            logging.getLogger(name).setLevel(logging.DEBUG)

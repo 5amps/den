@@ -540,8 +540,20 @@ class Player:
         if bool(cfg.get("music.announce_tracks", False)):
             asyncio.create_task(self.announce(f"Now playing: **{discord.utils.escape_markdown(track.title)}**"))
         self.cog.prebuffer(self)
+        if bool(cfg.get("bot.voice_debug", False)):
+            asyncio.create_task(self._debug_report())
         if self.humans() == 0:
             self.cog.pause_for_empty(self)
+
+    async def _debug_report(self) -> None:
+        """voice_debug only: log the connection's health a few seconds into a track."""
+        from cogs.system import voice_report
+        for delay in (3, 12):
+            await asyncio.sleep(delay)
+            vc = self.vc
+            if vc is None:
+                return
+            log.info("VOICE REPORT: %s", voice_report(vc))
 
     def _after(self, token: int, error: Exception | None) -> None:
         """Runs on the event loop when ffmpeg's stream ends."""

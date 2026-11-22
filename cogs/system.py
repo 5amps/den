@@ -23,6 +23,29 @@ def _uptime(seconds: float) -> str:
     return f"{minutes}m {secs}s"
 
 
+def voice_report(voice) -> str:
+    """One-line health summary of a voice connection, for diagnosing silence."""
+    try:
+        conn = voice._connection
+        session = getattr(conn, "dave_session", None)
+        source = getattr(voice, "source", None)
+        frames = getattr(source, "frames", None)
+        parts = [
+            f"channel {voice.channel.mention}" if voice.channel else "no channel",
+            "connected" if voice.is_connected() else "NOT connected",
+            "playing" if voice.is_playing() else ("paused" if voice.is_paused() else "idle"),
+            f"mode `{getattr(voice, 'mode', '?')}`",
+            f"E2EE v{getattr(conn, 'dave_protocol_version', '?')} "
+            f"{'ready' if session is not None and getattr(session, 'ready', False) else 'NOT ready'}",
+            f"latency {voice.latency * 1000:.0f} ms" if voice.latency != float("inf") else "latency ?",
+        ]
+        if frames is not None:
+            parts.append(f"{frames} packets sent")
+        return " · ".join(parts)
+    except Exception as exc:  # noqa: BLE001
+        return f"unavailable ({exc})"
+
+
 class System(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -51,6 +74,9 @@ class System(commands.Cog):
         embed.add_field(name="Free disk", value=f"{sysinfo.free_disk_mb(cfg.data_dir) / 1024:.1f} GB")
         embed.add_field(name="Helper processes", value=str(proc.live_count()))
         embed.add_field(name="ffmpeg", value="found" if proc.which("ffmpeg") else "missing")
+        voice = interaction.guild.voice_client
+        if voice is not None:
+            embed.add_field(name="Voice", value=voice_report(voice), inline=False)
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     # ---- server settings shared by every module ----
