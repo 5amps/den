@@ -1,0 +1,3 @@
+# The only Python dependency. The [voice] extra adds PyNaCl and davey (voice encryption).
+# Pinned to the 2.7 line, which supports Discord's end-to-end encrypted voice (DAVE).
+discord.py[voice]>=2.7.1,<2.8

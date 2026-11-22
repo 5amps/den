@@ -1,0 +1,38 @@
+# Potato Bot configuration.
+# Lines starting with # are comments. Restart the bot (or use /restart) after editing.
+# The bot token is NOT stored here. It goes in the .env file.
+
+[bot]
+# Text shown under the bot's name ("Playing ..."). Empty string = nothing.
+status = "running locally"
+
+# Your own server's ID. When set, slash commands appear in that server instantly.
+# When 0, commands are registered for every server, which can take up to an hour to show.
+# How to get it: Discord Settings > Advanced > Developer Mode on, then right-click
+# your server icon > Copy Server ID.
+dev_guild_id = 634369769583149090
+
+# How many recent messages to keep in memory (used for delete/edit logs).
+# Lower = less RAM. 0 = keep none.
+message_cache = 500
+
+# Where the database, logs, cache and transcripts are stored (relative to this folder).
+data_dir = "data"
+
+# DEBUG, INFO, WARNING or ERROR.
+log_level = "INFO"
+
+# Extra Discord gateway intents, only if a module you wrote yourself needs them.
+extra_intents = []
+
+[modules]
+# true = load the module. false = the file is never imported, so it costs zero RAM.
+# Modules marked "not built yet" are added in later phases; leave them false until then.
+music      = false   # phase b - not built yet
+video      = false   # phase b - not built yet
+antiraid   = false   # phase c - not built yet
+antispam   = false   # phase c - not built yet
+tickets    = false   # phase d - not built yet
+rsvp       = false   # phase e - not built yet
+moderation = false   # phase f - not built yet
+utility    = false   # phase f - not built yet

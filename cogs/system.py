@@ -1,0 +1,82 @@
+"""Always-on core commands: /ping, /status, /sync, /restart, /shutdown."""
+from __future__ import annotations
+
+import time
+
+import discord
+from discord import app_commands
+from discord.ext import commands
+
+from core import proc, sysinfo
+from core.checks import owner_only
+
+
+def _uptime(seconds: float) -> str:
+    seconds = int(seconds)
+    days, rest = divmod(seconds, 86400)
+    hours, rest = divmod(rest, 3600)
+    minutes, secs = divmod(rest, 60)
+    if days:
+        return f"{days}d {hours}h {minutes}m"
+    if hours:
+        return f"{hours}h {minutes}m"
+    return f"{minutes}m {secs}s"
+
+
+class System(commands.Cog):
+    def __init__(self, bot: commands.Bot):
+        self.bot = bot
+
+    @app_commands.command(description="Check that the bot is alive and how fast it responds.")
+    async def ping(self, interaction: discord.Interaction) -> None:
+        latency = self.bot.latency
+        text = "connecting..." if latency != latency or latency == float("inf") else f"{latency * 1000:.0f} ms"
+        await interaction.response.send_message(f"Pong. Gateway latency: {text}", ephemeral=True)
+
+    @app_commands.command(description="Show memory use, uptime and which modules are running.")
+    @app_commands.default_permissions(manage_guild=True)
+    @app_commands.guild_only()
+    async def status(self, interaction: discord.Interaction) -> None:
+        bot = self.bot
+        cfg = bot.cfg  # type: ignore[attr-defined]
+        embed = discord.Embed(title="Bot status", colour=discord.Colour.green())
+        embed.add_field(name="RAM", value=f"{sysinfo.rss_mb():.0f} MB")
+        embed.add_field(name="Uptime", value=_uptime(time.time() - bot.started_at))  # type: ignore[attr-defined]
+        embed.add_field(name="Servers", value=str(len(bot.guilds)))
+        embed.add_field(name="Modules", value=", ".join(bot.loaded_modules) or "core only", inline=False)  # type: ignore[attr-defined]
+        failed = bot.failed_modules  # type: ignore[attr-defined]
+        if failed:
+            embed.add_field(name="Failed to load", value=", ".join(failed), inline=False)
+        embed.add_field(name="Database", value=f"{sysinfo.file_mb(bot.db.path):.1f} MB")  # type: ignore[attr-defined]
+        embed.add_field(name="Free disk", value=f"{sysinfo.free_disk_mb(cfg.data_dir) / 1024:.1f} GB")
+        embed.add_field(name="Helper processes", value=str(proc.live_count()))
+        embed.add_field(name="ffmpeg", value="found" if proc.which("ffmpeg") else "missing")
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @app_commands.command(description="Owner: re-upload slash commands to Discord.")
+    @app_commands.default_permissions(administrator=True)
+    @owner_only()
+    async def sync(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer(ephemeral=True)
+        result = await self.bot.sync_commands(force=True)  # type: ignore[attr-defined]
+        await interaction.followup.send(f"Command sync: {result}", ephemeral=True)
+
+    @app_commands.command(description="Owner: restart the bot (the start script brings it back).")
+    @app_commands.default_permissions(administrator=True)
+    @owner_only()
+    async def restart(self, interaction: discord.Interaction) -> None:
+        await interaction.response.send_message("Restarting...", ephemeral=True)
+        self.bot.exit_code = 1  # type: ignore[attr-defined]
+        await self.bot.close()
+
+    @app_commands.command(description="Owner: stop the bot until it is started again by hand.")
+    @app_commands.default_permissions(administrator=True)
+    @owner_only()
+    async def shutdown(self, interaction: discord.Interaction) -> None:
+        await interaction.response.send_message("Shutting down.", ephemeral=True)
+        self.bot.exit_code = 0  # type: ignore[attr-defined]
+        await self.bot.close()
+
+
+async def setup(bot: commands.Bot) -> None:
+    await bot.add_cog(System(bot))
