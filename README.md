@@ -1,14 +1,42 @@
-# Potato Bot
+# 🥔 Potato Bot
 
-A self-hosted, all-in-one Discord bot built to run on weak hardware (dual-core, 2 GB RAM, HDD).
+**One Discord bot for music, tickets, events, anti-raid, anti-spam and moderation, small enough
+to run on an old PC.** It runs on your own machine, keeps everything in one local file, and
+needs no server rental, no Docker and no paid services.
 
-- Runs on your own PC. All data is one SQLite file in `data/`.
-- One Python dependency (`discord.py`). No Docker, no Redis, no cloud services, no paid APIs.
-- Every feature is a module you switch on or off in `config.toml`. A module that is off is never loaded.
+```
+RAM while online                          56 MB
+CPU while idle                            0.00 %   (too small to measure)
+ffmpeg CPU while playing music            0.5 - 5 % of one core
+Disk for the whole install                29 MB
+Python packages you install               1
+```
 
-**Status: prototype.** Every module is written and passes its offline tests (102 checks). It has
-not yet been run against a live Discord server, so expect to find bugs in the Discord-facing parts
-(voice playback, buttons, permissions) during the first real session.
+Measured on Windows 11 with a Ryzen 7 6800H; see [How little it uses](#how-little-it-uses) for the
+method and for what to expect on a slower CPU.
+
+## Why it exists
+
+Most servers end up running four or five separate bots: one for music, one for tickets, one for
+moderation, one for events. Each one is somebody else's server holding your data, and the good
+features are often behind a subscription. Self-hosted alternatives usually want Docker, a
+database server and a separate Java audio server.
+
+Potato Bot is the opposite trade: one small program, on a PC you already own.
+
+- **Local first.** Your music plays from your own folders. Settings, tickets, warnings and
+  events live in a single SQLite file in `data/`. Nothing is sent anywhere except Discord.
+- **Pay for what you use.** Every feature is a module. Switch one off in `config.toml` and its
+  code is never even loaded.
+- **Survives a bad connection.** It reconnects by itself with growing delays, resumes the music
+  queue after a restart, and sends reminders late rather than never.
+- **Two clicks to run.** `setup.bat`, then `start.bat`.
+
+**Status: prototype.** All eight modules are written and pass 102 offline checks. The bot
+connects, joins a server and registers its slash commands. The features themselves (voice
+playback, buttons, permission handling) are only now being tested live, so expect bugs.
+
+## What it does
 
 | Module | What it does |
 |---|---|
@@ -121,24 +149,48 @@ The start script restarts the bot if it crashes. Stop it with Ctrl+C, or `/shutd
 | Moderation | `/warn` `/history` `/clearwarnings` `/timeout` `/untimeout` `/kick` `/ban` `/unban` `/purge` `/slowmode` |
 | Utility | `/welcome set\|leave\|off` `/autorole` `/reactionrole add\|remove\|list` |
 
-## Resource use
+## How little it uses
 
-Measured on the development PC (Windows, Python 3.12). Online and streaming figures are estimates
-until the first live run; `/status` shows the real number.
+Measured on Windows 11, Python 3.12, Ryzen 7 6800H, with the bot online in one small server.
+CPU figures are a share of **one** core. `/status` shows the live RAM number on your machine.
 
-| State | RAM | CPU (dual-core) |
-|---|---|---|
-| All modules loaded, before connecting | 55 MB (measured) | - |
-| Online, idle, small server | 60-75 MB (estimate) | under 1% |
-| Playing an Opus file or YouTube audio (passthrough) | +15 MB for ffmpeg | 1-3% |
-| Playing mp3/flac (converted once to Opus) | +20-25 MB | 5-12% |
-| YouTube lookup or download (a few seconds) | +50-70 MB, then freed | one core briefly |
-| `/video clip` | +80-150 MB while encoding | one full core |
+| What | Measured |
+|---|---|
+| Bot online, 4 modules loaded (music, video, events, moderation) | **55.5 MB** RAM |
+| All 8 modules loaded, before connecting | 55 MB RAM |
+| Windows launcher stub that comes with a Python virtual environment | +4 MB |
+| Idle CPU, averaged over 60 seconds | **0.000 %** (below what Windows can measure) |
+| ffmpeg playing an Opus file, passed through untouched | 0.5 % CPU, 20 MB RAM |
+| ffmpeg playing an mp3, converted to Opus | 1.6 % CPU, 22 MB RAM |
+| ffmpeg playing a FLAC, converted to Opus | 4.7 % CPU, 24 MB RAM |
+| Whole install on disk (Python environment + code) | 29 MB |
+| The bot's own code | about 4,200 lines in 22 files |
 
-How it stays small: only the needed Discord intents, no member list download, a 500-message
-cache, SQLite on one worker thread with batched writes, timers instead of polling, counters in
-memory with expiry, ffmpeg writing Opus directly so Python never touches raw audio, and yt-dlp
-run as a short-lived separate process.
+So with music playing, the bot and ffmpeg together use roughly **80 MB of RAM**.
+
+**On an actual potato:** this test CPU is several times faster per core than an old dual-core
+laptop chip. Expect the music figures to be roughly 3 to 6 times higher there, which still
+leaves Opus passthrough at a few percent and mp3 playback around 5 to 10 % of one core. RAM does
+not change with CPU speed. These slower-CPU figures are an estimate, not a measurement.
+
+Not measured yet: all eight modules online together in a busy server, YouTube downloads
+(a separate yt-dlp process, roughly 50-70 MB for a few seconds), and `/video clip` (a full core
+while it encodes).
+
+### Where the savings come from
+
+| Choice | What it avoids |
+|---|---|
+| Only the Discord intents the enabled modules need | Receiving and parsing events nobody uses |
+| No member-list download at startup; only people in voice are cached | Memory that grows with server size |
+| 500-message cache instead of the default 1,000 | RAM, at the cost of shorter delete/edit logs |
+| Modules that are off are never imported | Paying for features you do not use |
+| SQLite on one worker thread, writes batched into one transaction | A database server, and disk thrashing on an HDD |
+| One timer that sleeps until the next job is due | Polling loops that wake the CPU every second |
+| Anti-spam counters in memory that expire on their own | A database read on every message |
+| ffmpeg writes Opus directly; Opus files are copied, not re-encoded | Python handling raw audio; most of the encoding work |
+| yt-dlp runs as a short-lived separate process | About 50 MB of permanently loaded library |
+| No Java audio server, no Redis, no Docker | Several hundred MB of always-on services |
 
 ## Testing
 
