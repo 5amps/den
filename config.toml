@@ -45,7 +45,7 @@ utility    = true    # welcome/leave, auto-role, reaction roles, message logs, /
 [music]
 # Folders that hold your music. Sub-folders are included. Use forward slashes.
 # Example: library_dirs = ["C:/Users/you/Music", "D:/Songs"]
-library_dirs = []
+library_dirs = ["C:/Users/samarth/Music"]
 
 # File types treated as music. Video files listed here are played as audio only.
 extensions = [".mp3", ".flac", ".ogg", ".opus", ".m4a", ".wav", ".aac", ".wma", ".mp4"]

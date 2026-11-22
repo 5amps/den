@@ -14,7 +14,6 @@ import logging
 import os
 import random
 import re
-import subprocess
 import time
 from collections import deque
 from dataclasses import dataclass
@@ -72,6 +71,9 @@ YOUTUBE_HOSTS = {"youtube.com", "www.youtube.com", "m.youtube.com", "music.youtu
 FRAME = 0.02            # seconds of audio per Opus packet sent to Discord
 MAX_FAILS = 3           # consecutive broken tracks before playback stops
 LOOP_MODES = ("off", "track", "queue")
+RESCAN_EVERY = 20.0     # seconds between automatic library re-scans triggered by a failed search
+# ffmpeg's own messages go nowhere. discord.py needs a real file object here, not subprocess.DEVNULL.
+_NULL = open(os.devnull, "wb")  # noqa: SIM115 - lives as long as the process
 
 
 # ---------------------------------------------------------------------------- helpers
@@ -183,7 +185,7 @@ def build_source(path: str, *, offset: float, volume: int, passthrough: bool,
             options += f" -filter:a volume={volume / 100:.2f}"
     inner = discord.FFmpegOpusAudio(
         path, bitrate=bitrate, codec="copy" if passthrough else None,
-        before_options=before, options=options, stderr=subprocess.DEVNULL,
+        before_options=before, options=options, stderr=_NULL,
     )
     return CountedSource(inner, offset)
 
@@ -610,6 +612,7 @@ class Music(commands.Cog):
         self.max_queue = int(bot.cfg.get("music.max_queue", 500))
         self.closing = False
         self._restored = False
+        self._last_scan = 0.0
         self._tasks: set[asyncio.Task] = set()
 
     # ---- lifecycle ----
@@ -678,6 +681,23 @@ class Music(commands.Cog):
             await self.bot.db.executemany("DELETE FROM library WHERE path = ?", gone)
         return len(new), len(gone), len(found)
 
+    async def refresh_library(self) -> bool:
+        """Re-scan the music folders so files added while the bot runs are found.
+
+        Called when a search comes up empty; at most once every RESCAN_EVERY seconds.
+        Returns True if new files were added.
+        """
+        now = time.monotonic()
+        if now - self._last_scan < RESCAN_EVERY:
+            return False
+        self._last_scan = now
+        try:
+            added, _, _ = await self.rescan("audio", self.library_dirs(), AUDIO_EXTENSIONS, "music.extensions")
+        except Exception:  # noqa: BLE001
+            log.exception("Library re-scan failed")
+            return False
+        return added > 0
+
     async def search(self, kind: str, text: str, limit: int) -> list:
         """Library rows matching text: exact title first, then shorter titles."""
         return await self.bot.db.fetchall(
@@ -709,6 +729,10 @@ class Music(commands.Cog):
                     "SELECT id, title FROM library WHERE kind = ? ORDER BY title LIMIT 25", (kind,))
         except Exception:  # noqa: BLE001 - autocomplete must never raise
             return []
+        if not rows and kind == "audio" and current.strip():
+            # Maybe the file was copied in after the last scan: look again in the background
+            # so the next keystroke finds it.
+            self._spawn(self.refresh_library())
         return [app_commands.Choice(name=row["title"][:100], value=f"#{row['id']}") for row in rows]
 
     async def path_for(self, track: Track) -> str:
@@ -945,6 +969,10 @@ class Music(commands.Cog):
     async def play(self, interaction: discord.Interaction, query: str) -> None:
         await interaction.response.defer()
         track = await self.find("audio", query, interaction.user.id)
+        if track is None:
+            self._last_scan = 0.0                           # an explicit /play always looks again
+            if await self.refresh_library():
+                track = await self.find("audio", query, interaction.user.id)
         if track is None:
             hint = " Use `/youtube` for online music." if self.youtube_enabled else ""
             raise UserError(f"Nothing in the library matches `{query[:80]}`.{hint}")
