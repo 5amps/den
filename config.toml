@@ -22,6 +22,10 @@ data_dir = "data"
 # DEBUG, INFO, WARNING or ERROR.
 log_level = "INFO"
 
+# If Discord refuses the privileged intents (not switched on in the Developer Portal),
+# start anyway without the modules that need them, instead of not starting at all.
+start_without_intents = true
+
 # Extra Discord gateway intents, only if a module you wrote yourself needs them.
 extra_intents = []
 

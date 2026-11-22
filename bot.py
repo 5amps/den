@@ -40,6 +40,7 @@ from core.settings import GLOBAL, Settings
 log = logging.getLogger("bot")
 
 EXIT_OK, EXIT_CRASH, EXIT_NEVER_READY, EXIT_CONFIG = 0, 1, 2, 78
+NEEDS_INTENTS = -1      # internal: Discord refused the privileged intents we asked for
 
 # Gateway intents each module needs. Only enabled modules contribute, so a bot running
 # tickets + RSVP alone asks Discord for almost nothing.
@@ -177,6 +178,12 @@ class PotatoBot(commands.Bot):
     async def on_guild_remove(self, guild: discord.Guild) -> None:
         self.settings.forget(guild.id)
 
+    async def on_guild_join(self, guild: discord.Guild) -> None:
+        log.info("Added to server %s (%s).", guild.name, guild.id)
+        if guild.id == int(self.cfg.get("bot.dev_guild_id", 0) or 0):
+            # The start-up sync fails if the bot was not in the server yet; do it now.
+            await self.sync_commands(force=True)
+
     async def on_error(self, event_method: str, /, *args, **kwargs) -> None:
         log.exception("Unhandled error in %s", event_method)
 
@@ -248,7 +255,7 @@ async def run_bot(cfg: Config) -> int:
             "Fix: discord.com/developers/applications > your app > Bot > Privileged Gateway Intents, "
             "enable them, save, then start the bot again.", ", ".join(needed) or "(unknown)",
         )
-        return EXIT_CONFIG
+        return NEEDS_INTENTS
     except asyncio.CancelledError:
         return EXIT_OK      # Ctrl+C
     except Exception:  # noqa: BLE001 - log it, then let the start script restart us
@@ -309,7 +316,20 @@ def main() -> int:
         print("Another copy of the bot is already running with this data folder. Close it first.")
         return EXIT_CONFIG
     try:
-        return asyncio.run(run_check(cfg) if args.check else run_bot(cfg))
+        if args.check:
+            return asyncio.run(run_check(cfg))
+        code = asyncio.run(run_bot(cfg))
+        if code == NEEDS_INTENTS:
+            # Run with what Discord allows instead of refusing to start at all.
+            blocked = [m for m in cfg.enabled_modules if set(MODULE_INTENTS.get(m, ())) & set(PRIVILEGED)]
+            if not blocked or not bool(cfg.get("bot.start_without_intents", True)):
+                return EXIT_CONFIG
+            cfg.disabled.update(blocked)
+            log.warning("Starting WITHOUT these modules until the intents are enabled: %s", ", ".join(blocked))
+            code = asyncio.run(run_bot(cfg))
+            if code == NEEDS_INTENTS:
+                return EXIT_CONFIG
+        return code
     except ConfigError as exc:
         print(f"CONFIG ERROR: {exc}")
         return EXIT_CONFIG

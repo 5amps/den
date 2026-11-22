@@ -53,6 +53,7 @@ class Config:
     def __init__(self, data: dict[str, Any], path: Path):
         self._data = data
         self.path = path
+        self.disabled: set[str] = set()     # modules switched off at runtime (missing intents)
 
     def get(self, dotted: str, default: Any = None) -> Any:
         node: Any = self._data
@@ -67,7 +68,7 @@ class Config:
         return value if isinstance(value, dict) else {}
 
     def enabled(self, module: str) -> bool:
-        return bool(self.get(f"modules.{module}", False))
+        return module not in self.disabled and bool(self.get(f"modules.{module}", False))
 
     @property
     def enabled_modules(self) -> list[str]:
