@@ -1,4 +1,4 @@
-"""Utilities: welcome/leave messages, auto-role, reaction roles, message logs, /help."""
+"""Utilities: welcome/leave messages, auto-role, reaction roles, message logs."""
 from __future__ import annotations
 
 import logging
@@ -9,7 +9,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from core.checks import UserError
-from core.modlog import GREEN, GREY, ORANGE, send_log
+from core.modlog import GREY, ORANGE, send_log
 
 log = logging.getLogger("utility")
 
@@ -265,21 +265,6 @@ class Utility(commands.Cog):
             lines.append(f"{shown} gives <@&{r['role_id']}> on [this message]({link})")
         await interaction.response.send_message("\n".join(lines)[:2000], ephemeral=True,
                                                 allowed_mentions=discord.AllowedMentions.none())
-
-    # ---- help ----
-    @app_commands.command(description="List the bot's commands.")
-    async def help(self, interaction: discord.Interaction) -> None:
-        embed = discord.Embed(title="Commands", colour=GREEN,
-                              description="Commands you lack permission for may be hidden by Discord.")
-        for name, cog in sorted(self.bot.cogs.items()):
-            parts = []
-            for command in cog.walk_app_commands():
-                if isinstance(command, app_commands.Group):
-                    continue
-                parts.append(f"`/{command.qualified_name}`")
-            if parts:
-                embed.add_field(name=name, value=" ".join(parts)[:1024], inline=False)
-        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 async def setup(bot: commands.Bot) -> None:

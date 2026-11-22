@@ -79,6 +79,45 @@ async def main() -> None:
         ok("all commands serialise for upload", True)
         ok("/youtube is hidden while YouTube is off", bot.tree.get_command("youtube") is None)
 
+        print("help")
+        from core import helpdata
+        system = bot.get_cog("System")
+        sections = helpdata.collect(bot)
+        listed = {i.name for *_, infos in sections for i in infos}
+        real = {c.qualified_name for c in commands_seen if not hasattr(c, "commands")}
+        ok(f"/help lists every registered command ({len(listed)})", listed == real)
+        ok("every module has a heading and a 'start here' line", all(h and s and st for _, h, s, st, _ in sections))
+
+        class Capture(FakeResponse):
+            async def send_message(self, content=None, **kwargs) -> None:
+                self.sent.append(kwargs.get("embed"))
+
+        async def show(module=None):
+            fake = interaction(1)
+            fake.response = Capture()
+            await system.help.callback(system, fake, module)
+            return fake.response.sent[-1]
+
+        def fits(embed) -> bool:                      # Discord's hard limits for one embed
+            return (len(embed) <= 6000 and len(embed.fields) <= 25 and len(embed.description or "") <= 4096
+                    and all(1 <= len(f.value) <= 1024 for f in embed.fields))
+
+        overview = await show()
+        ok(f"/help overview fits in one message ({len(overview)} of 6000 characters)", fits(overview))
+        pages = [await show(name) for name, *_ in sections]
+        ok(f"/help for each of the {len(pages)} modules fits", all(fits(e) for e in pages))
+        usage = {i.name: i for *_, infos in sections for i in infos}
+        ok("usage strings mark required and optional options",
+           usage["timeout"].usage == "/timeout <member> <duration> [reason]" and usage["playlist save"].usage == "/playlist save <name>")
+        ok("staff commands are labelled", usage["ban"].access == "Needs Ban Members" and usage["play"].access == "Everyone"
+           and usage["config log-channel"].access == "Needs Manage Server")
+        try:
+            await show("nonsense")
+            unknown = False
+        except UserError:
+            unknown = True
+        ok("unknown module gives a clear error", unknown)
+
         print("anti-spam rules")
         spam: antispam.AntiSpam = bot.get_cog("AntiSpam")
         check = lambda text, user=1, mentions=0, everyone=False, now=0.0: spam.check(1, user, text, mentions, everyone, now)  # noqa: E731

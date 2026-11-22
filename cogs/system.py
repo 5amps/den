@@ -1,4 +1,4 @@
-"""Always-on core commands: /ping, /status, /sync, /restart, /shutdown."""
+"""Always-on core commands: /help, /ping, /status, /config, /sync, /restart, /shutdown."""
 from __future__ import annotations
 
 import time
@@ -7,8 +7,8 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from core import proc, sysinfo
-from core.checks import owner_only
+from core import helpdata, proc, sysinfo
+from core.checks import UserError, owner_only
 
 
 def _uptime(seconds: float) -> str:
@@ -49,6 +49,52 @@ def voice_report(voice) -> str:
 class System(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+
+    # ---- help: always available, built from the commands that are really registered ----
+    async def _help_modules(self, interaction: discord.Interaction, current: str):
+        choices = []
+        for name, heading, _, _, _ in helpdata.collect(self.bot):
+            if current.lower() in heading.lower() or current.lower() in name.lower():
+                choices.append(app_commands.Choice(name=heading, value=name))
+        return choices[:25]
+
+    @app_commands.command(description="How to use the bot: quick start and every command.")
+    @app_commands.describe(module="Pick a module to see each of its commands with options")
+    @app_commands.autocomplete(module=_help_modules)
+    async def help(self, interaction: discord.Interaction, module: str | None = None) -> None:
+        sections = helpdata.collect(self.bot)
+        colour = discord.Colour.green()
+        if module is None:
+            embed = discord.Embed(
+                title="How to use this bot", colour=colour,
+                description="Type `/` in any channel and pick a command; Discord shows each option as you type.\n"
+                            "For details on one area use `/help module:` and pick it from the list.")
+            for _, heading, summary, start, infos in sections:
+                names = " ".join(f"`/{i.name}`" for i in infos)
+                embed.add_field(name=heading, value=f"{summary}\n**Start here:** {start}\n{names}"[:1024], inline=False)
+            embed.set_footer(text="Some commands are for staff only; Discord hides the ones you cannot use.")
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+        wanted = module.strip().lower()
+        match = next((s for s in sections if s[0].lower() == wanted or wanted in s[1].lower()), None)
+        if match is None:
+            raise UserError("No such module, or it is switched off. Run `/help` to see what is available.")
+        _, heading, summary, start, infos = match
+        blocks = []
+        for info in infos:
+            lock = "" if info.access == "Everyone" else f" · 🔒 {info.access}"
+            blocks.append(f"**`{info.usage}`**{lock}\n{info.description}")
+        embed = discord.Embed(title=heading, colour=colour, description=f"{summary}\n**Start here:** {start}")
+        chunk: list[str] = []
+        for block in blocks:                    # embed fields hold 1024 characters each
+            if chunk and sum(len(x) + 1 for x in chunk) + len(block) > 1000:
+                embed.add_field(name="​", value="\n".join(chunk), inline=False)
+                chunk = []
+            chunk.append(block)
+        if chunk:
+            embed.add_field(name="​", value="\n".join(chunk), inline=False)
+        embed.set_footer(text="<name> is required, [name] is optional.")
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @app_commands.command(description="Check that the bot is alive and how fast it responds.")
     async def ping(self, interaction: discord.Interaction) -> None:

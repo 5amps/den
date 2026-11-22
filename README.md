@@ -15,7 +15,7 @@ Small enough to run on an old PC. Yours, on your own machine.**
 [What it does](#what-it-does) ·
 [How little it uses](#how-little-it-uses) ·
 [Setup](#setup) ·
-[Commands](#commands) ·
+[Commands](COMMANDS.md) ·
 [How it works](#how-it-works) ·
 [Troubleshooting](#troubleshooting)
 
@@ -59,7 +59,7 @@ Potato Bot is the opposite trade: one small program, on a PC you already own.
 
 | Part | State |
 |---|---|
-| Offline test suite | ✅ 102 checks pass |
+| Offline test suite | ✅ 109 checks pass |
 | Connecting, reconnecting, slash-command registration | ✅ Working live |
 | Music from local files into a voice channel | ✅ Working live (heard in a real call) |
 | Queue resumes after a restart | ✅ Working live |
@@ -81,7 +81,7 @@ Expect bugs in anything marked 🧪 or ❔.
 | 🎫 | **tickets** | Button panel, private channel per ticket, claim and close, transcripts saved to your disk as HTML or text. |
 | 📅 | **rsvp** | Events with Going / Maybe / Can't go buttons, capacity with a waitlist, reminders, auto-close. |
 | 🔨 | **moderation** | warn, timeout, kick, ban, unban, purge, slowmode, and a per-member history. |
-| 🧰 | **utility** | Welcome and leave messages, auto-role, reaction roles, delete/edit logs, `/help`. |
+| 🧰 | **utility** | Welcome and leave messages, auto-role, reaction roles, delete/edit logs. |
 
 ## How it works
 
@@ -205,6 +205,10 @@ The start script restarts the bot if it crashes. Stop it with Ctrl+C, or `/shutd
 
 ## Commands
 
+**Full reference with every option: [COMMANDS.md](COMMANDS.md).** In Discord, `/help` shows the same
+list for the modules you have switched on, and `/help module:` explains one area in detail.
+`/help` is always available, even with every optional module off.
+
 | Area | Commands |
 |---|---|
 | Core | `/ping` `/status` `/help` `/config log-channel` `/config staff-role` `/config show` `/sync` `/restart` `/shutdown` |
@@ -216,6 +220,8 @@ The start script restarts the bot if it crashes. Stop it with Ctrl+C, or `/shutd
 | Events | `/event create` `/event cancel` `/event list` `/event attendees` |
 | Moderation | `/warn` `/history` `/clearwarnings` `/timeout` `/untimeout` `/kick` `/ban` `/unban` `/purge` `/slowmode` |
 | Utility | `/welcome set\|leave\|off` `/autorole` `/reactionrole add\|remove\|list` |
+
+After adding or changing a command, run `tools/gen_commands.py` to rebuild `COMMANDS.md`.
 
 ## How little it uses
 
@@ -269,7 +275,7 @@ No token needed for these:
 | `.venv\Scripts\python.exe tests\test_core.py` | `All 32 checks passed.` |
 | `.venv\Scripts\python.exe tests\test_startup.py` | `Startup checks passed.` |
 | `.venv\Scripts\python.exe tests\test_music.py` | `All 30 music checks passed.` (`--youtube` adds 4 network checks) |
-| `.venv\Scripts\python.exe tests\test_modules.py` | `All 37 module checks passed.` |
+| `.venv\Scripts\python.exe tests\test_modules.py` | `All 44 module checks passed.` |
 | `.venv\Scripts\python.exe bot.py --check` | Report with `Modules failed  none` |
 
 On Linux use `.venv/bin/python`. Live checks once the bot is online:
@@ -359,7 +365,9 @@ potato-bot/
     sysinfo.py    RAM and disk readings
     log.py        console + rotating log file
   cogs/           one file per module (system.py is always loaded)
+  tools/          gen_commands.py (rebuilds COMMANDS.md), audio-check.ps1 (Windows sound levels)
   tests/          offline tests, no token needed
+  COMMANDS.md     every slash command, generated from the code
   data/           bot.db, logs/, cache/, transcripts/ (created automatically)
 ```
 
