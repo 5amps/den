@@ -1,19 +1,40 @@
+<div align="center">
+
 # 🥔 Potato Bot
 
-**One Discord bot for music, tickets, events, anti-raid, anti-spam and moderation, small enough
-to run on an old PC.** It runs on your own machine, keeps everything in one local file, and
-needs no server rental, no Docker and no paid services.
+**One Discord bot for music, tickets, events, anti-raid, anti-spam and moderation.<br>
+Small enough to run on an old PC. Yours, on your own machine.**
 
-```
-RAM while online                          56 MB
-CPU while idle                            0.00 %   (too small to measure)
-ffmpeg CPU while playing music            0.5 - 5 % of one core
-Disk for the whole install                29 MB
-Python packages you install               1
-```
+![Python](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)
+![discord.py](https://img.shields.io/badge/discord.py-2.7-5865F2?logo=discord&logoColor=white)
+![RAM](https://img.shields.io/badge/RAM-56%20MB-2ea44f)
+![Idle CPU](https://img.shields.io/badge/idle%20CPU-0%25-2ea44f)
+![Dependencies](https://img.shields.io/badge/dependencies-1-2ea44f)
+![Status](https://img.shields.io/badge/status-prototype-orange)
 
-Measured on Windows 11 with a Ryzen 7 6800H; see [How little it uses](#how-little-it-uses) for the
+[What it does](#what-it-does) ·
+[How little it uses](#how-little-it-uses) ·
+[Setup](#setup) ·
+[Commands](#commands) ·
+[How it works](#how-it-works) ·
+[Troubleshooting](#troubleshooting)
+
+</div>
+
+---
+
+| | Measured |
+|---|---|
+| 🧠 RAM while online | **56 MB** |
+| 💤 CPU while idle | **0.00 %** (too small to measure) |
+| 🎵 ffmpeg CPU while playing music | **0.5 – 5 %** of one core |
+| 💾 Disk for the whole install | **29 MB** |
+| 📦 Python packages you install | **1** |
+
+Measured on Windows 11 with a Ryzen 7 6800H. See [How little it uses](#how-little-it-uses) for the
 method and for what to expect on a slower CPU.
+
+No Docker. No database server. No Java audio server. No cloud. No subscription.
 
 ## Why it exists
 
@@ -32,22 +53,66 @@ Potato Bot is the opposite trade: one small program, on a PC you already own.
   queue after a restart, and sends reminders late rather than never.
 - **Two clicks to run.** `setup.bat`, then `start.bat`.
 
-**Status: prototype.** All eight modules are written and pass 102 offline checks. The bot
-connects, joins a server and registers its slash commands. The features themselves (voice
-playback, buttons, permission handling) are only now being tested live, so expect bugs.
+## Project status
+
+**Prototype.** Honest state of each part:
+
+| Part | State |
+|---|---|
+| Offline test suite | ✅ 102 checks pass |
+| Connecting, reconnecting, slash-command registration | ✅ Working live |
+| Music from local files into a voice channel | ✅ Working live (heard in a real call) |
+| Queue resumes after a restart | ✅ Working live |
+| Everything else in music (seek, volume, playlists, YouTube) | 🧪 Passes offline tests, not yet tried live |
+| Events, moderation, video | 🧪 Loaded live, commands not yet exercised |
+| Tickets, anti-spam, anti-raid, utility | 🧪 Pass offline tests, not yet loaded live |
+| Linux scripts, Android/Termux steps | ❔ Written, never run |
+
+Expect bugs in anything marked 🧪 or ❔.
 
 ## What it does
 
-| Module | What it does |
-|---|---|
-| music | Local library, queue, skip, loop, shuffle, volume, seek, playlists, resume after restart, optional YouTube |
-| video | Plays the audio of local video files; posts short clips as files |
-| antispam | Message rate, duplicates, mentions, emoji, caps, invites, links; warn > timeout > kick > ban |
-| antiraid | Join-rate detection, auto-lockdown, account-age filter, verify button, `/panic` and `/unlock` |
-| tickets | Button panel, private channels, claim/close, HTML/text transcripts saved to disk |
-| rsvp | Events with Going / Maybe / Can't go buttons, capacity + waitlist, reminders, auto-close |
-| moderation | warn, timeout, kick, ban, unban, purge, slowmode, per-user history |
-| utility | Welcome/leave messages, auto-role, reaction roles, delete/edit logs, `/help` |
+| | Module | What you get |
+|---|---|---|
+| 🎵 | **music** | Plays your own files (mp3, flac, ogg, opus, m4a, wav, mp4). Queue, skip, loop, shuffle, volume, seek, saved playlists. Picks up where it left off after a restart. Optional YouTube. |
+| 🎬 | **video** | Plays the audio of local video files. Cuts short clips and posts them as files. |
+| 🛡️ | **antispam** | Catches message floods, repeats, mass mentions, emoji and caps walls, invite links and unwanted links. Escalates: warn → timeout → kick → ban. |
+| 🚨 | **antiraid** | Spots join floods and locks the server by itself. Filters brand-new accounts. Verify button. `/panic` and `/unlock`. |
+| 🎫 | **tickets** | Button panel, private channel per ticket, claim and close, transcripts saved to your disk as HTML or text. |
+| 📅 | **rsvp** | Events with Going / Maybe / Can't go buttons, capacity with a waitlist, reminders, auto-close. |
+| 🔨 | **moderation** | warn, timeout, kick, ban, unban, purge, slowmode, and a per-member history. |
+| 🧰 | **utility** | Welcome and leave messages, auto-role, reaction roles, delete/edit logs, `/help`. |
+
+## How it works
+
+```mermaid
+flowchart LR
+    subgraph PC["Your PC"]
+        direction TB
+        BOT["bot.py<br/>loads only enabled modules"]
+        MODS["cogs/<br/>music · tickets · rsvp · antiraid<br/>antispam · moderation · utility · video"]
+        CORE["core/<br/>database · scheduler · counters<br/>process control · settings"]
+        DB[("data/bot.db<br/>one SQLite file")]
+        FILES[["Your music folder"]]
+        FF["ffmpeg<br/>runs only while music plays"]
+        BOT --> MODS --> CORE --> DB
+        MODS --> FF
+        FILES --> FF
+    end
+    DISCORD(("Discord"))
+    BOT <-- "commands, events" --> DISCORD
+    FF -- "encrypted Opus audio" --> DISCORD
+```
+
+- **`bot.py`** reads `config.toml`, opens the database, and imports only the modules you switched
+  on. It asks Discord for only the event types those modules need.
+- **`cogs/`** holds one file per feature. They never talk to each other's tables.
+- **`core/`** is the shared plumbing: one database thread that batches writes, one timer that
+  sleeps until the next reminder is due, in-memory counters that expire on their own, and a
+  wrapper that starts and cleanly kills helper programs.
+- **ffmpeg** turns a music file into Opus audio and is only running while something plays. If the
+  file is already Opus it is copied through without re-encoding.
+- **Nothing leaves your PC** except what Discord needs: command replies and the audio stream.
 
 ## What "local" means here
 
@@ -111,6 +176,9 @@ DISCORD_TOKEN=your-token-here
 ```
 
 ### 4. Edit `config.toml`
+
+`config.toml` is created from `config.example.toml` the first time the bot (or setup) runs. It is
+your personal copy and is never uploaded to GitHub.
 
 - `dev_guild_id`: your server's ID, so slash commands appear instantly.
 - `[music] library_dirs`: your music folders, for example `["C:/Users/you/Music"]`.
@@ -252,12 +320,28 @@ What does not work on a phone:
   but expect gaps.
 - **`/video clip`.** Far too slow on phone CPUs.
 
+## Keeping your secrets safe
+
+| File | Contains | Uploaded to GitHub? |
+|---|---|---|
+| `.env` | Your bot token | **Never** (listed in `.gitignore`) |
+| `config.toml` | Your server ID and folder paths | **Never** |
+| `data/` | Database, logs, transcripts, cached audio | **Never** |
+| `config.example.toml`, `.env.example` | Blank templates | Yes |
+
+- Anyone with the bot token controls your bot. Never paste it in chat, screenshots or issues.
+- If a token is ever exposed, open the Developer Portal > Bot > **Reset Token** and put the new
+  one in `.env`. The old token stops working immediately.
+- With `voice_debug = true`, `data/logs/bot.log` contains short-lived voice session keys. Do not
+  share that log; switch the setting off again when you are done.
+
 ## Folder layout
 
 ```
 potato-bot/
   bot.py              entry point: config, database, module loading, reconnect, exit codes
-  config.toml         all settings, commented
+  config.example.toml template for all settings, commented
+  config.toml         your copy, created on first start (not uploaded)
   config.lite.toml    phone / very weak machine preset
   .env                your token (created by setup, never share it)
   requirements.txt / requirements-lite.txt

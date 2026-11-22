@@ -100,7 +100,14 @@ def load_config(path: str | os.PathLike | None = None) -> Config:
     if not cfg_path.is_absolute():
         cfg_path = ROOT / cfg_path
     if not cfg_path.is_file():
-        raise ConfigError(f"Config file not found: {cfg_path}")
+        template = ROOT / "config.example.toml"
+        if path is None and cfg_path.name == "config.toml" and template.is_file():
+            # First start: give the user their own copy. config.toml is not tracked by git,
+            # so personal values (server ID, folder paths) stay on this machine.
+            cfg_path.write_bytes(template.read_bytes())
+            print(f"Created {cfg_path.name} from config.example.toml. Edit it to change settings.")
+        else:
+            raise ConfigError(f"Config file not found: {cfg_path}")
     try:
         # utf-8-sig: Notepad and PowerShell may save with a byte-order mark, which TOML rejects.
         data = tomllib.loads(cfg_path.read_text(encoding="utf-8-sig"))

@@ -1,4 +1,6 @@
 # Potato Bot configuration.
+# This is the template. On first start it is copied to config.toml, which is yours to edit
+# and is never uploaded to GitHub.
 # Lines starting with # are comments. Restart the bot (or use /restart) after editing.
 # The bot token is NOT stored here. It goes in the .env file.
 
@@ -10,7 +12,7 @@ status = "running locally"
 # When 0, commands are registered for every server, which can take up to an hour to show.
 # How to get it: Discord Settings > Advanced > Developer Mode on, then right-click
 # your server icon > Copy Server ID.
-dev_guild_id = 634369769583149090
+dev_guild_id = 0
 
 # How many recent messages to keep in memory (used for delete/edit logs).
 # Lower = less RAM. 0 = keep none.
@@ -49,7 +51,7 @@ utility    = true    # welcome/leave, auto-role, reaction roles, message logs, /
 [music]
 # Folders that hold your music. Sub-folders are included. Use forward slashes.
 # Example: library_dirs = ["C:/Users/you/Music", "D:/Songs"]
-library_dirs = ["C:/Users/samarth/Music"]
+library_dirs = []
 
 # File types treated as music. Video files listed here are played as audio only.
 extensions = [".mp3", ".flac", ".ogg", ".opus", ".m4a", ".wav", ".aac", ".wma", ".mp4"]
