@@ -194,6 +194,26 @@ async def main() -> None:
                and other.serve.is_file())
             converted = other.serve
 
+            print("conversion policy")
+            avi = tmp / "old.avi"
+            make_video(avi, ["-c:v", "mpeg4", "-c:a", "mp3", "-shortest"])
+            cog.convert_policy = "staff"
+            try:
+                await cog.plan(str(avi), staff=False)
+                refused = False
+            except UserError:
+                refused = True
+            ok("members cannot start a slow full conversion", refused)
+            ok("staff can", (await cog.plan(str(avi), staff=True))[0] == "transcode")
+            ok("cheap repackaging is allowed for everyone", (await cog.plan(str(mkv), staff=False))[0] == "remux")
+            cog.convert_policy = "off"
+            try:
+                await cog.plan(str(avi), staff=True)
+                off = False
+            except UserError:
+                off = True
+            ok("conversion can be switched off completely", off)
+
             print("ending")
             await cog.end_session(other.token, "test")
             ok("converted copy deleted at the end", not converted.exists())

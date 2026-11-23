@@ -13,7 +13,7 @@ from discord import app_commands
 from discord.ext import commands, tasks
 
 from core import helpdata, proc, sysinfo
-from core.checks import UserError, owner_only
+from core.checks import UserError, owner_only, staff_only
 
 
 def _uptime(seconds: float) -> str:
@@ -160,6 +160,7 @@ class System(commands.Cog):
     @app_commands.command(description="Show RAM, CPU and GPU use, uptime and which modules are running.")
     @app_commands.default_permissions(manage_guild=True)
     @app_commands.guild_only()
+    @staff_only()
     async def status(self, interaction: discord.Interaction) -> None:
         bot = self.bot
         cfg = bot.cfg  # type: ignore[attr-defined]

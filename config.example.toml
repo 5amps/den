@@ -175,3 +175,4 @@ max_parties = 3
 max_viewers = 30              # per party; every viewer downloads the video from this PC
 idle_minutes = 30             # end a party after this long with nobody watching
 staff_only = false
+full_convert = "staff"        # formats browsers cannot play need re-encoding (slow, busy CPU): everyone | staff | off

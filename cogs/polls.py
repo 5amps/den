@@ -16,7 +16,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from core.checks import UserError, is_staff, missing_permissions
+from core.checks import UserError, is_staff, missing_permissions, user_may_post
 
 log = logging.getLogger("polls")
 
@@ -81,6 +81,7 @@ class Polls(commands.Cog):
                      options: str, hours: app_commands.Range[int, 1, 768] = 24, multiple: bool = False) -> None:
         if self.staff_only and not await is_staff(interaction):
             raise UserError("Only staff can start polls on this server.")
+        user_may_post(interaction, "send_polls")
         answers = split_options(options)
         missing = missing_permissions(interaction.channel, "view_channel", "send_messages", "send_polls")
         if missing:

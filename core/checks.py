@@ -64,6 +64,17 @@ def owner_only():
     return app_commands.check(predicate)
 
 
+def user_may_post(interaction: discord.Interaction, *extra: str) -> None:
+    """Refuse when the person could not post this themselves. Otherwise a member muted in a
+    channel (or in a read-only announcements channel) could make the bot post there for them."""
+    perms = interaction.permissions
+    needed = ("send_messages", *extra)
+    missing = [n for n in needed if not getattr(perms, n, False)]
+    if missing:
+        raise UserError("You cannot post that in this channel yourself, so I will not post it for you "
+                        f"(missing: {', '.join(m.replace('_', ' ').title() for m in missing)}).")
+
+
 def missing_permissions(channel: discord.abc.GuildChannel | discord.Thread, *names: str) -> list[str]:
     """Which of the named permissions the bot lacks in a channel (empty list = all good)."""
     perms = channel.permissions_for(channel.guild.me)

@@ -52,10 +52,7 @@ fi
 
 chmod +x start.sh 2>/dev/null
 
-echo "[4/4] Self-test..."
-if .venv/bin/python bot.py --check; then
-    echo
-    echo "Setup finished. Put your token in .env, then run ./start.sh"
-else
-    echo "[!] The self-test reported a problem. Read the lines above."
-fi
+echo "[4/4] Checking everything (token, intents, server)..."
+.venv/bin/python tools/setup_wizard.py "$@" || true
+echo
+echo "Run ./setup.sh again any time: it only does what is still missing."

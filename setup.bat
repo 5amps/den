@@ -56,19 +56,14 @@ if errorlevel 1 (
     echo     then close and reopen this window.
 )
 
-echo [4/4] Self-test...
-".venv\Scripts\python.exe" bot.py --check
-if errorlevel 1 (
-    echo [!] The self-test reported a problem. Read the lines above.
-) else (
-    echo.
-    echo Setup finished. Put your token in .env, then double-click start.bat
-)
+echo [4/4] Checking everything (token, intents, server)...
+".venv\Scripts\python.exe" tools\setup_wizard.py %*
 echo.
-pause
+echo Run setup.bat again any time: it only does what is still missing.
+if not defined DEN_NO_PAUSE pause
 exit /b 0
 
 :fail
 echo.
-pause
+if not defined DEN_NO_PAUSE pause
 exit /b 1

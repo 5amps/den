@@ -197,7 +197,28 @@ async def main() -> None:
         await test_db(tmp)
         await test_scheduler(tmp)
         await test_proc()
+    test_wizard()
     print(f"\nAll {passed} checks passed.")
+
+
+def test_wizard() -> None:
+    print("setup wizard")
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
+    import setup_wizard
+
+    sample = "[bot]\ndev_guild_id = 0   # your server\n\n[modules]\nmusic = true\nutility    = true    # welcome\n"
+    edited = setup_wizard.set_config_value(sample, "bot", "dev_guild_id", "123")
+    edited = setup_wizard.set_config_value(edited, "modules", "utility", "false")
+    ok("wizard edits a value and keeps the comment", "dev_guild_id = 123   # your server" in edited
+       and "utility    = false    # welcome" in edited and "music = true" in edited)
+    try:
+        setup_wizard.set_config_value(sample, "bot", "nope", "1")
+        refused = False
+    except ValueError:
+        refused = True
+    ok("wizard refuses a key that is not there", refused)
+    ok("wizard never edits the wrong section", "[modules]\nmusic = true" in
+       setup_wizard.set_config_value(sample, "bot", "dev_guild_id", "5"))
 
 
 if __name__ == "__main__":

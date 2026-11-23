@@ -40,7 +40,7 @@ from discord import app_commands
 from discord.ext import commands, tasks
 
 from core import proc
-from core.checks import UserError, is_staff
+from core.checks import UserError, is_staff, user_may_post
 
 log = logging.getLogger("watch")
 
@@ -136,6 +136,9 @@ class Watch(commands.Cog):
         self.max_viewers = int(get("watch.max_viewers", 30))
         self.idle_minutes = float(get("watch.idle_minutes", 30))
         self.staff_only = bool(get("watch.staff_only", False))
+        # Re-encoding a whole film keeps a CPU busy for a long time; repackaging is seconds.
+        self.convert_policy = str(get("watch.full_convert", "staff")).lower()   # everyone | staff | off
+        self._convert_slot = asyncio.Semaphore(1)        # one conversion at a time
         self.cache = bot.cfg.data_dir / "cache" / "watch"
         self.sessions: dict[str, Session] = {}
         self.runner: web.AppRunner | None = None
@@ -353,16 +356,26 @@ class Watch(commands.Cog):
             duration = None
         return video.get("codec_name"), audio.get("codec_name"), video.get("pix_fmt"), duration
 
-    async def prepare(self, session: Session) -> None:
+    async def plan(self, path: str, staff: bool) -> tuple[str, float | None]:
+        video, audio, pix, duration = await self.probe(path)
+        how = plan_for(Path(path).suffix, video, audio, pix)
+        if how == "transcode" and (self.convert_policy == "off" or (self.convert_policy == "staff" and not staff)):
+            raise UserError("Browsers cannot play this file's format, and converting it takes a long time, so "
+                            + ("conversion is switched off (`watch.full_convert`)." if self.convert_policy == "off"
+                               else "only staff can start it. Ask staff, or use an .mp4 / .webm file."))
+        return how, duration
+
+    async def prepare(self, session: Session, how: str | None = None) -> None:
         try:
-            video, audio, pix, session.duration = await self.probe(session.source)
-            how = plan_for(Path(session.source).suffix, video, audio, pix)
+            if how is None:
+                how, session.duration = await self.plan(session.source, staff=True)
             if how == "direct":
                 session.serve = Path(session.source)
             else:
                 digest = hashlib.sha1(f"{session.source}{os.path.getmtime(session.source)}".encode()).hexdigest()[:16]
                 out = self.cache / f"{digest}-{session.token[:6]}.mp4"
-                await self.convert(session, how, out)
+                async with self._convert_slot:
+                    await self.convert(session, how, out)
                 session.serve, session.temp = out, True
             session.progress = 1.0
             session.ready.set()
@@ -464,18 +477,20 @@ class Watch(commands.Cog):
     async def start(self, interaction: discord.Interaction, file: str) -> None:
         if self.staff_only and not await is_staff(interaction):
             raise UserError("Only staff can start watch parties on this server.")
+        user_may_post(interaction)
         if len(self.sessions) >= self.max_parties:
             raise UserError(f"{self.max_parties} watch parties are already running. End one with `/watch end`.")
         track = await self.music.find("video", file, interaction.user.id)
         if track is None or not os.path.isfile(track.ref):
             raise UserError(f"No video file matches `{file[:80]}`. The bot owner adds folders with `/library setup`.")
         await interaction.response.defer()
+        how, duration = await self.plan(track.ref, staff=await is_staff(interaction))
         async with self._lock:
             await self.start_server()
         session = Session(secrets.token_urlsafe(16), track.title, track.ref, interaction.user.id,
-                          interaction.guild_id, interaction.channel_id)
+                          interaction.guild_id, interaction.channel_id, duration=duration)
         self.sessions[session.token] = session
-        session.task = asyncio.create_task(self.prepare(session))
+        session.task = asyncio.create_task(self.prepare(session, how))
         links = self.links(session.token)
         view = discord.ui.View(timeout=None)
         for label, url in links:

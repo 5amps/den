@@ -309,6 +309,17 @@ async def main() -> None:
         from cogs.system import usage_fields
         ok("status lines built", len(usage_fields(usage, [])) == 4)
 
+        print("posting on someone's behalf")
+        from core.checks import user_may_post
+        muted = SimpleNamespace(permissions=discord.Permissions(send_messages=False, send_polls=True))
+        talker = SimpleNamespace(permissions=discord.Permissions(send_messages=True, send_polls=False))
+        both = SimpleNamespace(permissions=discord.Permissions(send_messages=True, send_polls=True))
+        ok("member who cannot post here is refused", raises(user_may_post, muted))
+        ok("member without Send Polls cannot make the bot post a poll", raises(user_may_post, talker, "send_polls"))
+        ok("member with both may", user_may_post(both, "send_polls") is None)
+        status_checks = [c.__qualname__ for c in bot.tree.get_command("status").checks]
+        ok("/status is checked by the bot too, not only Discord's setting", len(status_checks) >= 1)
+
         print("intents")
         lite = Config({"modules": {"rsvp": True, "moderation": True}}, cfg.path)
         ok("events + moderation alone need no privileged intents", botmod.privileged_in_use(botmod.build_intents(lite)) == [])

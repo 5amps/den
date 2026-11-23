@@ -12,6 +12,8 @@ Small enough to run on an old PC. Yours, on your own machine.**
 ![Dependencies](https://img.shields.io/badge/dependencies-1-2ea44f)
 ![Status](https://img.shields.io/badge/status-prototype-orange)
 
+[Quick start](#quick-start) ·
+[What needs what](#what-needs-what) ·
 [What it does](#what-it-does) ·
 [How little it uses](#how-little-it-uses) ·
 [Setup](#setup) ·
@@ -37,6 +39,59 @@ method and for what to expect on a slower CPU.
 
 No Docker. No database server. No Java audio server. No cloud. No subscription.
 
+## Quick start
+
+You need a Windows or Linux PC with [Python 3.11+](https://www.python.org/downloads/) and about
+10 minutes. Get the code first: `git clone https://github.com/5amps/den`, or **Code > Download
+ZIP** on GitHub and unzip it.
+
+### Option A: let an AI assistant do it
+
+Open the `den` folder in [Claude Code](https://claude.com/claude-code) (or another coding
+assistant) and say:
+
+> Set up Den for me.
+
+It follows [AI_SETUP.md](AI_SETUP.md): it installs everything, checks every setting and starts
+the bot. You only do the four clicks on Discord's website that bots can't do for you. It tells
+you exactly which ones, and it never needs to see your token.
+
+### Option B: by hand
+
+1. **Windows:** double-click `setup.bat`. **Linux:** `chmod +x setup.sh && ./setup.sh`
+2. The setup wizard lists everything as `[ OK ]` or `[TODO]`, and each TODO tells you exactly
+   what to click. The first time, that's creating the bot on Discord's website and pasting its
+   token into `.env`.
+3. Run setup again. Repeat until there are no TODOs left. It only does what is still missing.
+4. Start: double-click `start.bat` (Linux: `./start.sh`).
+5. In Discord: `/library setup` to pick your music and video folders, then `/help`.
+
+## What needs what
+
+Most features work as soon as the bot is in your server. A few need a switch on Discord's
+website or a free extra program. The setup wizard checks all of this for you.
+
+| Feature | Works right away | Needs a switch on Discord's website | Needs an extra program |
+|---|:-:|---|---|
+| Events (RSVP), reminders, polls, moderation commands | ✅ | none | none |
+| Music from your files | ✅ | none | **ffmpeg** (free) |
+| Video: sound from video files, clips | ✅ | none | **ffmpeg** |
+| Watch parties on your Wi-Fi | ✅ | none | **ffmpeg** |
+| Watch parties for friends elsewhere | | none | **cloudflared** (free), or your own port forward |
+| Anti-spam, tickets | | **Message Content Intent** | none |
+| Anti-raid, welcome messages, auto-role, reaction roles | | **Server Members Intent** + **Message Content Intent** | none |
+| YouTube playback (off by default, breaks YouTube's rules) | | none | **yt-dlp** |
+| GPU reading in `/status` | ✅ | none | NVIDIA driver (optional) |
+
+**Installing the extras:** Windows `winget install Gyan.FFmpeg` / `winget install Cloudflare.cloudflared`;
+Debian/Ubuntu `sudo apt install ffmpeg`.
+**The two switches:** Developer Portal > your app > **Bot** > Privileged Gateway Intents.
+[Why each is needed](#privileged-gateway-intents-developer-portal--bot). If they are off, the bot
+still starts and skips only the modules that need them.
+
+**What the bot can never do:** stream video into a voice channel (Discord doesn't allow bots to;
+use watch parties instead), or work while your PC is off or asleep.
+
 ## Why it exists
 
 Most servers end up running four or five separate bots: one for music, one for tickets, one for
@@ -60,12 +115,13 @@ Den is the opposite trade: one small program, on a PC you already own.
 
 | Part | State |
 |---|---|
-| Offline test suite | ✅ 109 checks pass |
-| Connecting, reconnecting, slash-command registration | ✅ Working live |
-| Music from local files into a voice channel | ✅ Working live (heard in a real call) |
-| Queue resumes after a restart | ✅ Working live |
-| Everything else in music (seek, volume, playlists, YouTube) | 🧪 Passes offline tests, not yet tried live |
-| Events, moderation, video | 🧪 Loaded live, commands not yet exercised |
+| Offline test suite | ✅ 190+ checks pass (no token needed) |
+| Connecting, reconnecting, slash commands, setup wizard | ✅ Working live |
+| Music: play, queue, pause, resume, skip, shuffle, volume, seek, stop | ✅ Working live (heard in a real call) |
+| `/status` with RAM/CPU/GPU, `/help`, `/ping`, `/library setup` | ✅ Working live |
+| Events list and RSVP buttons, reminders (DM arrived), `/video clip` | ✅ Working live |
+| Watch parties: sync, seeking, viewer count, second account | ✅ Working live on a home network |
+| Polls, moderation actions, YouTube, cloudflared tunnel | 🧪 Pass offline tests, not yet tried live |
 | Tickets, anti-spam, anti-raid, utility | 🧪 Pass offline tests, not yet loaded live |
 | Linux scripts | ❔ Written, never run |
 
@@ -252,7 +308,7 @@ Moderate Members, Connect, Speak, Send Polls. [What each one is for](#server-per
 **Linux:** `chmod +x setup.sh && ./setup.sh`
 
 Setup creates a private Python environment in `.venv`, installs the dependency, creates `.env`
-and runs a self-test. It needs Python 3.11 or newer. ffmpeg is only needed for music and video.
+and `config.toml`, then runs the **setup wizard**. It needs Python 3.11 or newer.
 
 ### 3. Add your token
 
@@ -262,12 +318,23 @@ Open `.env` in a text editor and paste the token:
 DISCORD_TOKEN=your-token-here
 ```
 
-### 4. Edit `config.toml`
+Then run setup again (or just the wizard: `.venv\Scripts\python.exe tools\setup_wizard.py`).
+The wizard:
 
-`config.toml` is created from `config.example.toml` the first time the bot (or setup) runs. It is
-your personal copy and is never uploaded to GitHub.
+- checks the token with Discord, without printing it
+- gives you the invite link, ready to open (no copying IDs by hand)
+- once the bot is in your server, writes that server's ID into `config.toml` so commands
+  appear instantly (`--wait 600` keeps checking while you open the link)
+- tells you which intents are off and which modules need them (`--disable-missing` switches
+  those modules off instead)
+- checks ffmpeg
 
-- `dev_guild_id`: your server's ID, so slash commands appear instantly.
+### 4. Edit `config.toml` (optional)
+
+`config.toml` is your personal copy of `config.example.toml` and is never uploaded to GitHub.
+The defaults work. Things you might change:
+
+- `dev_guild_id`: your server's ID (the wizard sets it).
 - Music and video folders: easiest is to pick them in Discord with `/library setup` (step 6).
   You can also list them under `[music] library_dirs` / `[video] library_dirs`.
 - `[modules]`: switch off anything you do not want.
@@ -418,11 +485,11 @@ No token needed for these:
 
 | Command | Expected |
 |---|---|
-| `.venv\Scripts\python.exe tests\test_core.py` | `All 32 checks passed.` |
+| `.venv\Scripts\python.exe tests\test_core.py` | `All 35 checks passed.` |
 | `.venv\Scripts\python.exe tests\test_startup.py` | `Startup checks passed.` |
 | `.venv\Scripts\python.exe tests\test_music.py` | `All 30 music checks passed.` (`--youtube` adds 4 network checks) |
-| `.venv\Scripts\python.exe tests\test_modules.py` | `All 80 module checks passed.` |
-| `.venv\Scripts\python.exe tests\test_watch.py` | `All 38 watch checks passed.` (real web server, two viewers in sync) |
+| `.venv\Scripts\python.exe tests\test_modules.py` | `All 84 module checks passed.` |
+| `.venv\Scripts\python.exe tests\test_watch.py` | `All 42 watch checks passed.` (real web server, two viewers in sync) |
 | `.venv\Scripts\python.exe bot.py --check` | Report with `Modules failed  none` |
 
 On Linux use `.venv/bin/python`. Live checks once the bot is online:
@@ -440,6 +507,8 @@ On Linux use `.venv/bin/python`. Live checks once the bot is online:
 | `/event create title:Test when:in 20m reminder_minutes:15` | Buttons work; reminder after 5 minutes |
 
 ## Keeping your secrets safe
+
+See also [SECURITY.md](SECURITY.md): every attack considered and how the bot handles it.
 
 | File | Contains | Uploaded to GitHub? |
 |---|---|---|
@@ -479,7 +548,10 @@ den/
     log.py        console + rotating log file
   cogs/           one file per module (system.py is always loaded; library.py loads with music)
   web/            watch.html, the watch-party player page
-  tools/          gen_commands.py (rebuilds COMMANDS.md), audio-check.ps1 (Windows sound levels)
+  tools/          setup_wizard.py (checks and finishes setup), gen_commands.py (rebuilds COMMANDS.md),
+                  audio-check.ps1 (Windows sound levels)
+  AI_SETUP.md     step-by-step guide an AI assistant follows to set the bot up for you
+  SECURITY.md     what the bot protects against, and your part
   tests/          offline tests, no token needed
   COMMANDS.md     every slash command, generated from the code
   data/           bot.db, logs/, cache/, transcripts/ (created automatically)
