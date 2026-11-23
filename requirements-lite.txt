@@ -1,3 +1,3 @@
 # Lite mode (no music/video): discord.py without the voice libraries.
-# Use this on Termux, where the voice extras have to be compiled from source.
+# Use this where the voice extras cannot be installed (no music or video).
 discord.py>=2.7.1,<2.8

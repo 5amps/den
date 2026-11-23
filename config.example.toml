@@ -7,6 +7,7 @@
 [bot]
 # Text shown under the bot's name ("Playing ..."). Empty string = nothing.
 status = "running locally"
+show_usage = true     # show live "RAM .. MB · CPU ..%" in the bot's status
 
 # Your own server's ID. When set, slash commands appear in that server instantly.
 # When 0, commands are registered for every server, which can take up to an hour to show.
@@ -47,9 +48,13 @@ tickets    = true    # ticket panel, private channels, transcripts
 rsvp       = true    # events with Going / Maybe / No buttons and reminders
 moderation = true    # warn, timeout, kick, ban, purge, history
 utility    = true    # welcome/leave, auto-role, reaction roles, message logs, /help
+reminders  = true    # /remind: the bot DMs you later; daily/weekly repeat
+polls      = true    # /poll: Discord's built-in polls (needs Send Polls permission)
+watch      = true    # /watch: watch a local video together in the browser, in sync
 
 [music]
 # Folders that hold your music. Sub-folders are included. Use forward slashes.
+# Easier: leave this empty and pick folders in Discord with /library setup (bot owner only).
 # Example: library_dirs = ["C:/Users/you/Music", "D:/Songs"]
 library_dirs = []
 
@@ -96,6 +101,7 @@ ytdlp_args = []               # extra yt-dlp options, e.g. ["--js-runtimes", "no
 
 [video]
 # Folders with video files. /video play uses their audio; /video clip posts a short piece.
+# Easier: pick them in Discord with /library setup (bot owner only).
 # Bots cannot stream video into a voice channel; Discord does not offer that to bots.
 library_dirs = []
 extensions = [".mp4", ".mkv", ".webm", ".avi", ".mov", ".m4v"]
@@ -151,3 +157,21 @@ refresh_seconds = 2           # the event message is edited at most this often
 [utility]
 log_deleted_messages = true   # needs /config log-channel
 log_edited_messages = true
+
+[reminders]
+max_per_user = 25             # active reminders one person can have
+
+[polls]
+staff_only = false            # true = only staff can start polls
+
+[watch]
+# Watch parties: /watch start serves a video from this PC to everyone's browser, in sync.
+port = 8765                   # the web server only runs while a party is running
+bind = "0.0.0.0"              # "0.0.0.0" = reachable on your network; "127.0.0.1" = this PC only
+# Friends outside your Wi-Fi need one of these two:
+tunnel = "off"                # "cloudflared" = open a free temporary Cloudflare link while a party runs
+public_url = ""               # or your own address, e.g. "https://watch.example.com" (port forward / tunnel)
+max_parties = 3
+max_viewers = 30              # per party; every viewer downloads the video from this PC
+idle_minutes = 30             # end a party after this long with nobody watching
+staff_only = false

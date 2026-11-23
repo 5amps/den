@@ -27,6 +27,7 @@ from discord.ext import commands
 
 from core import proc, sysinfo
 from core.checks import UserError, is_staff, missing_permissions, staff_only
+from core.settings import GLOBAL
 
 log = logging.getLogger("music")
 
@@ -626,10 +627,14 @@ class Music(commands.Cog):
         self._restored = False
         self._last_scan = 0.0
         self._tasks: set[asyncio.Task] = set()
+        # Folders picked in Discord with /library (stored in the database), per config key.
+        self.extra_dirs: dict[str, list[str]] = {}
 
     # ---- lifecycle ----
     async def cog_load(self) -> None:
         await self.bot.db.script(SCHEMA)
+        for key in ("music.library_dirs", "video.library_dirs"):
+            self.extra_dirs[key] = list(await self.bot.settings.get(GLOBAL, f"dirs:{key}", []) or [])
         if not proc.which("ffmpeg"):
             log.warning("ffmpeg was not found. Music commands will fail until it is installed.")
         if bool(self.bot.cfg.get("music.scan_on_start", True)):
@@ -669,13 +674,18 @@ class Music(commands.Cog):
 
     # ---- library ----
     def library_dirs(self, key: str = "music.library_dirs") -> list[str]:
-        folders = []
-        for item in self.bot.cfg.get(key, []) or []:
+        """Existing folders from config.toml plus the ones picked in Discord with /library."""
+        folders: list[str] = []
+        seen: set[str] = set()
+        for item in [*(self.bot.cfg.get(key, []) or []), *self.extra_dirs.get(key, [])]:
             path = Path(str(item)).expanduser()
-            if path.is_dir():
-                folders.append(str(path))
-            else:
+            if not path.is_dir():
                 log.warning("%s: folder not found: %s", key, item)
+                continue
+            norm = os.path.normcase(str(path))
+            if norm not in seen:
+                seen.add(norm)
+                folders.append(str(path))
         return folders
 
     async def rescan(self, kind: str, folders: list[str], default_ext: list[str], ext_key: str) -> tuple[int, int, int]:
@@ -1189,7 +1199,7 @@ class Music(commands.Cog):
         await interaction.response.defer(ephemeral=True)
         folders = self.library_dirs()
         if not folders:
-            raise UserError("No valid folders are set in `music.library_dirs` in config.toml.")
+            raise UserError("No music folder is set yet. The bot owner can pick one with `/library setup`.")
         added, removed, total = await self.rescan("audio", folders, AUDIO_EXTENSIONS, "music.extensions")
         await interaction.followup.send(f"Library: {total} track(s). {added} new, {removed} removed.", ephemeral=True)
 
@@ -1280,5 +1290,7 @@ class Music(commands.Cog):
 async def setup(bot: commands.Bot) -> None:
     cog = Music(bot)
     await bot.add_cog(cog)
+    from cogs.library import Library          # folder picker; lives with music because it needs it
+    await bot.add_cog(Library(bot))
     if not cog.youtube_enabled:
         bot.tree.remove_command("youtube")

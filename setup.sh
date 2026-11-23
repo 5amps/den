@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# Potato Bot setup for Linux (and Termux; see the README for the Termux packages).
+# Potato Bot setup for Linux.
 set -u
 cd "$(dirname "$0")" || exit 1
 
@@ -16,7 +16,6 @@ done
 if [ -z "$PY" ]; then
     echo "[X] Python 3.11 or newer was not found."
     echo "    Debian/Ubuntu: sudo apt install python3 python3-venv"
-    echo "    Termux:        pkg install python"
     exit 1
 fi
 
@@ -48,7 +47,7 @@ fi
 
 if ! command -v ffmpeg >/dev/null 2>&1; then
     echo "[!] ffmpeg not found. Music and video will not work until you install it:"
-    echo "    Debian/Ubuntu: sudo apt install ffmpeg      Termux: pkg install ffmpeg"
+    echo "    Debian/Ubuntu: sudo apt install ffmpeg"
 fi
 
 chmod +x start.sh 2>/dev/null

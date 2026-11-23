@@ -1,6 +1,6 @@
 # Command reference
 
-All 69 slash commands, generated from the code by `tools/gen_commands.py`.
+All 79 slash commands, generated from the code by `tools/gen_commands.py`.
 In Discord, `/help` shows the same list for the modules that are switched on.
 
 - `<name>` is required, `[name]` is optional.
@@ -45,7 +45,7 @@ Health checks, help and server settings. Module name in `config.toml`: `system` 
 | `/ping` | Check that the bot is alive and how fast it responds. | Everyone |
 | `/restart` | Owner: restart the bot (the start script brings it back). | Needs Administrator |
 | `/shutdown` | Owner: stop the bot until it is started again by hand. | Needs Administrator |
-| `/status` | Show memory use, uptime and which modules are running. | Needs Manage Server |
+| `/status` | Show RAM, CPU and GPU use, uptime and which modules are running. | Needs Manage Server |
 | `/sync` | Owner: re-upload slash commands to Discord. | Needs Administrator |
 
 <details><summary>Options explained</summary>
@@ -141,6 +141,51 @@ Audio from local video files, and short clips. Module name in `config.toml`: `vi
 
 </details>
 
+## 📂 Media folders
+
+Choose which folders on the bot's PC hold music and videos. Module name in `config.toml`: `library`.
+
+**Start here:** Bot owner: `/library setup` opens a panel; pick a folder from the list or type a path.
+
+| Command | What it does | Who |
+|---|---|---|
+| `/library add <type> <folder>` | Owner: add a music or video folder. | Needs Administrator |
+| `/library remove <type> <folder>` | Owner: stop using a music or video folder. | Needs Administrator |
+| `/library setup` | Owner: pick the music and video folders from a list. | Needs Administrator |
+
+<details><summary>Options explained</summary>
+
+**`/library add`**
+- `type`: Music or video
+- `folder`: Start typing a path; pick from the suggestions
+
+**`/library remove`**
+- `type`: Music or video
+- `folder`: Pick the folder to remove
+
+</details>
+
+## 🍿 Watch parties
+
+Watch a local video together in the browser, in sync. Module name in `config.toml`: `watch`.
+
+**Start here:** `/watch start`, pick a video, open the link and press Join. Pause and seek are shared.
+
+| Command | What it does | Who |
+|---|---|---|
+| `/watch end <party>` | End a watch party (yours, or any if you are staff). | Everyone |
+| `/watch start <file>` | Watch a local video together in the browser, in sync. | Everyone |
+
+<details><summary>Options explained</summary>
+
+**`/watch end`**
+- `party`: Pick the watch party to end
+
+**`/watch start`**
+- `file`: Start typing a video name, then pick from the list
+
+</details>
+
 ## 📅 Events
 
 Events with Going / Maybe / Can't go buttons. Module name in `config.toml`: `rsvp`.
@@ -194,6 +239,54 @@ Private help channels with staff. Module name in `config.toml`: `tickets`.
 
 **`/ticket panel`**
 - `channel` (optional): Where to post it (default: here)
+
+</details>
+
+## ⏰ Reminders
+
+The bot DMs you when it is time. Module name in `config.toml`: `reminders`.
+
+**Start here:** `/remind when: in 2h what: stretch` · `/reminders list` shows yours.
+
+| Command | What it does | Who |
+|---|---|---|
+| `/remind <when> <what> [repeat]` | Remind you about something later, by DM. | Everyone |
+| `/reminders cancel <reminder>` | Cancel one of your reminders. | Everyone |
+| `/reminders list` | Show your upcoming reminders. | Everyone |
+
+<details><summary>Options explained</summary>
+
+**`/remind`**
+- `when`: e.g. in 2h 30m, 45m, 18:30, tomorrow 9:00, 2026-12-24 18:30
+- `what`: What to remind you about
+- `repeat` (optional): Repeat every day or week
+
+**`/reminders cancel`**
+- `reminder`: Pick the reminder to cancel
+
+</details>
+
+## 📊 Polls
+
+Discord's own polls: live bars, results posted automatically. Module name in `config.toml`: `polls`.
+
+**Start here:** `/poll create` with options like `Pizza | Tacos | Sushi`.
+
+| Command | What it does | Who |
+|---|---|---|
+| `/poll create <question> <options> [hours] [multiple]` | Start a poll in this channel. Discord counts the votes. | Everyone |
+| `/poll end <poll>` | End a poll now and show the result (your own polls, or any if staff). | Everyone |
+
+<details><summary>Options explained</summary>
+
+**`/poll create`**
+- `question`: The question
+- `options`: 2 to 10 options separated by |, e.g. Pizza | Tacos
+- `hours` (optional): How long it runs, 1 to 768 hours (default 24)
+- `multiple` (optional): Allow picking more than one option
+
+**`/poll end`**
+- `poll`: Pick the poll to end
 
 </details>
 

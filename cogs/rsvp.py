@@ -7,9 +7,7 @@ couple of seconds per event, so a rush of clicks cannot hit Discord's edit rate 
 from __future__ import annotations
 
 import asyncio
-import datetime
 import logging
-import re
 import time
 
 import discord
@@ -18,6 +16,7 @@ from discord.ext import commands
 
 from core.checks import UserError, guarded, is_staff, reply
 from core.modlog import BLUE, GREY
+from core.when import parse_when
 
 log = logging.getLogger("rsvp")
 
@@ -46,36 +45,6 @@ CREATE TABLE IF NOT EXISTS rsvps (
 LABELS = {"going": ("Going", "✅", discord.ButtonStyle.success),
           "maybe": ("Maybe", "❔", discord.ButtonStyle.secondary),
           "no": ("Can't go", "❌", discord.ButtonStyle.danger)}
-RELATIVE_RE = re.compile(r"^(?:in\s+)?(?:(\d+)\s*d)?\s*(?:(\d+)\s*h)?\s*(?:(\d+)\s*m(?:in)?)?$", re.I)
-DATE_FORMATS = ("%Y-%m-%d %H:%M", "%d-%m-%Y %H:%M", "%d/%m/%Y %H:%M", "%Y-%m-%d", "%H:%M")
-
-
-def parse_when(text: str) -> float:
-    """'2026-12-24 18:30', '24/12/2026 18:30', '18:30' (today/tomorrow) or 'in 2d 3h 30m' -> epoch.
-
-    Absolute times are read in the clock/time zone of the PC running the bot.
-    """
-    text = text.strip()
-    match = RELATIVE_RE.match(text)
-    if match and any(match.groups()):
-        days, hours, minutes = (int(g or 0) for g in match.groups())
-        return time.time() + days * 86400 + hours * 3600 + minutes * 60
-    for fmt in DATE_FORMATS:
-        try:
-            parsed = datetime.datetime.strptime(text, fmt)
-        except ValueError:
-            continue
-        now = datetime.datetime.now()
-        if fmt == "%H:%M":
-            parsed = now.replace(hour=parsed.hour, minute=parsed.minute, second=0, microsecond=0)
-            if parsed <= now:
-                parsed += datetime.timedelta(days=1)
-        elif fmt == "%Y-%m-%d":
-            parsed = parsed.replace(hour=12)
-        return parsed.timestamp()
-    raise UserError("I could not read that time. Use `2026-12-24 18:30`, `18:30`, or `in 2h 30m`.")
-
-
 class RsvpButton(discord.ui.DynamicItem[discord.ui.Button], template=r"rsvp:(?P<event>\d+):(?P<status>going|maybe|no)"):
     def __init__(self, event_id: int, status: str, disabled: bool = False) -> None:
         label, emoji, style = LABELS[status]

@@ -1,4 +1,4 @@
-# Lite mode: for a phone (Termux) or a very weak machine.
+# Lite mode: for a very weak machine.
 # Voice features are off, so ffmpeg, yt-dlp and the voice libraries are not needed.
 # Start with:   ./start.sh --config config.lite.toml
 # Every setting not listed here uses the same default as config.toml.
@@ -18,6 +18,9 @@ antispam   = true
 tickets    = true
 rsvp       = true
 moderation = true
+reminders  = true
+polls      = true
+watch      = false            # serves video files; off on weak machines
 utility    = true
 
 [antispam]

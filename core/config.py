@@ -21,6 +21,9 @@ KNOWN_MODULES = (
     "antispam",
     "moderation",
     "utility",
+    "reminders",
+    "polls",
+    "watch",
 )
 
 

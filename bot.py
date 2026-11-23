@@ -53,6 +53,9 @@ MODULE_INTENTS: dict[str, tuple[str, ...]] = {
     "antispam": ("guild_messages", "message_content"),
     "moderation": (),
     "utility": ("members", "guild_messages", "message_content", "guild_reactions"),
+    "reminders": (),
+    "polls": (),
+    "watch": (),
 }
 PRIVILEGED = {
     "members": "Server Members Intent",

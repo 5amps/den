@@ -1,11 +1,16 @@
-"""Always-on core commands: /help, /ping, /status, /config, /sync, /restart, /shutdown."""
+"""Always-on core commands: /help, /ping, /status, /config, /sync, /restart, /shutdown.
+
+Also keeps a live "RAM ... CPU ..." line in the bot's status (bot.show_usage in config.toml).
+"""
 from __future__ import annotations
 
+import asyncio
+import logging
 import time
 
 import discord
 from discord import app_commands
-from discord.ext import commands
+from discord.ext import commands, tasks
 
 from core import helpdata, proc, sysinfo
 from core.checks import UserError, owner_only
@@ -46,9 +51,59 @@ def voice_report(voice) -> str:
         return f"unavailable ({exc})"
 
 
+log = logging.getLogger("system")
+
+
+def _pct(value: float | None) -> str:
+    return "n/a" if value is None else f"{value:.1f}%"
+
+
+def usage_fields(u: sysinfo.Usage, gpus: list[str]) -> list[tuple[str, str]]:
+    """(name, value) lines for the resource part of /status."""
+    pc_ram = ("n/a" if u.pc_ram_used_mb is None or not u.pc_ram_total_mb
+              else f"{u.pc_ram_used_mb / 1024:.1f} / {u.pc_ram_total_mb / 1024:.1f} GB "
+                   f"({u.pc_ram_used_mb / u.pc_ram_total_mb * 100:.0f}%)")
+    helpers = (f"{u.helpers} running · RAM {u.helpers_ram_mb:.0f} MB · CPU {_pct(u.helpers_cpu)}"
+               if u.helpers else "none running")
+    gpu = "\n".join(gpus) if gpus else "No NVIDIA GPU found (other GPUs cannot be read)"
+    return [
+        ("🤖 Bot", f"RAM **{u.bot_ram_mb:.0f} MB** · CPU **{_pct(u.bot_cpu)}**"),
+        ("🎞️ Helpers (ffmpeg, yt-dlp)", helpers),
+        ("🖥️ Whole PC", f"CPU {_pct(u.pc_cpu)} of {u.cores} cores · RAM {pc_ram}"),
+        ("🎮 GPU (whole PC)", f"{gpu}\n-# The bot does not use the GPU; ffmpeg decodes audio on the CPU."),
+    ]
+
+
 class System(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self.sampler = sysinfo.Sampler()
+        self.status_text = str(bot.cfg.get("bot.status", "") or "")  # type: ignore[attr-defined]
+        self._presence = ""
+
+    @commands.Cog.listener()
+    async def on_ready(self) -> None:
+        if bool(self.bot.cfg.get("bot.show_usage", True)) and not self.usage_loop.is_running():  # type: ignore[attr-defined]
+            self.usage_loop.start()
+
+    async def cog_unload(self) -> None:
+        self.usage_loop.cancel()
+
+    @tasks.loop(seconds=60)
+    async def usage_loop(self) -> None:
+        """Show RAM and CPU in the bot's status, so anyone can see what it costs at a glance."""
+        u = await asyncio.to_thread(self.sampler.read)
+        cpu = (u.bot_cpu or 0) + (u.helpers_cpu or 0)
+        text = f"RAM {u.bot_ram_mb + u.helpers_ram_mb:.0f} MB · CPU {cpu:.1f}%"
+        if self.status_text:
+            text = f"{self.status_text} · {text}"
+        if text != self._presence:
+            self._presence = text
+            await self.bot.change_presence(activity=discord.CustomActivity(name=text[:128]))
+
+    @usage_loop.error
+    async def _usage_error(self, error: BaseException) -> None:
+        log.warning("Usage status update failed: %s", error)
 
     # ---- help: always available, built from the commands that are really registered ----
     async def _help_modules(self, interaction: discord.Interaction, current: str):
@@ -102,14 +157,17 @@ class System(commands.Cog):
         text = "connecting..." if latency != latency or latency == float("inf") else f"{latency * 1000:.0f} ms"
         await interaction.response.send_message(f"Pong. Gateway latency: {text}", ephemeral=True)
 
-    @app_commands.command(description="Show memory use, uptime and which modules are running.")
+    @app_commands.command(description="Show RAM, CPU and GPU use, uptime and which modules are running.")
     @app_commands.default_permissions(manage_guild=True)
     @app_commands.guild_only()
     async def status(self, interaction: discord.Interaction) -> None:
         bot = self.bot
         cfg = bot.cfg  # type: ignore[attr-defined]
+        await interaction.response.defer(ephemeral=True, thinking=True)
+        usage, gpus = await asyncio.gather(asyncio.to_thread(self.sampler.read), sysinfo.gpu_report())
         embed = discord.Embed(title="Bot status", colour=discord.Colour.green())
-        embed.add_field(name="RAM", value=f"{sysinfo.rss_mb():.0f} MB")
+        for name, value in usage_fields(usage, gpus):
+            embed.add_field(name=name, value=value[:1024], inline=False)
         embed.add_field(name="Uptime", value=_uptime(time.time() - bot.started_at))  # type: ignore[attr-defined]
         embed.add_field(name="Servers", value=str(len(bot.guilds)))
         embed.add_field(name="Modules", value=", ".join(bot.loaded_modules) or "core only", inline=False)  # type: ignore[attr-defined]
@@ -123,7 +181,8 @@ class System(commands.Cog):
         voice = interaction.guild.voice_client
         if voice is not None:
             embed.add_field(name="Voice", value=voice_report(voice), inline=False)
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        embed.set_footer(text="CPU % is of the whole processor (all cores = 100%), like Task Manager.")
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
     # ---- server settings shared by every module ----
     config = app_commands.Group(name="config", description="Server settings for the bot", guild_only=True,

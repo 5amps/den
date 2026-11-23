@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>{{TITLE}} · Watch party</title>
+<style>
+  :root { --bg:#0e0f13; --panel:#181a21; --text:#e9eaee; --muted:#9aa0ad; --accent:#5865f2; --ok:#3ba55c; --bad:#ed4245; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--text);
+    font:15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width:1200px; margin:0 auto; padding:16px; display:flex; flex-direction:column; gap:12px; min-height:100%; }
+  header { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  h1 { font-size:18px; margin:0; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .pill { background:var(--panel); border-radius:999px; padding:4px 12px; color:var(--muted); font-size:13px; white-space:nowrap; }
+  .pill b { color:var(--text); }
+  .dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--muted); margin-right:6px; vertical-align:middle; }
+  .dot.on { background:var(--ok); } .dot.off { background:var(--bad); }
+  .stage { position:relative; background:#000; border-radius:12px; overflow:hidden; aspect-ratio:16/9; width:100%; }
+  video { width:100%; height:100%; display:block; background:#000; }
+  .overlay { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:14px; background:rgba(8,9,12,.82); text-align:center; padding:20px; }
+  .overlay[hidden] { display:none; }
+  button.big { background:var(--accent); color:#fff; border:0; border-radius:10px; padding:14px 28px; font-size:17px;
+    font-weight:600; cursor:pointer; }
+  button.big:hover { filter:brightness(1.1); }
+  .bar { width:min(360px,80%); height:8px; background:#2a2d37; border-radius:99px; overflow:hidden; }
+  .bar i { display:block; height:100%; width:0; background:var(--accent); transition:width .4s; }
+  .note { color:var(--muted); font-size:13px; }
+  #log { color:var(--muted); font-size:13px; min-height:1.4em; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>🎬 {{TITLE}}</h1>
+    <span class="pill"><span class="dot" id="dot"></span><span id="conn">connecting…</span></span>
+    <span class="pill">👀 <b id="viewers">0</b> watching</span>
+  </header>
+  <div class="stage">
+    <video id="v" controls playsinline preload="metadata"></video>
+    <div class="overlay" id="ov">
+      <div id="ovText">Connecting to the watch party…</div>
+      <div class="bar" id="bar" hidden><i id="barFill"></i></div>
+      <button class="big" id="join" hidden>▶ Join the watch party</button>
+      <div class="note" id="ovNote"></div>
+    </div>
+  </div>
+  <div id="log"></div>
+  <div class="note">Play, pause and seeking are shared with everyone watching. Use the player's own buttons.</div>
+</main>
+<script>
+(() => {
+  "use strict";
+  const token = "{{TOKEN}}";
+  const v = document.getElementById("v");
+  const $ = (id) => document.getElementById(id);
+  let ws = null, offset = 0, state = null, joined = false, ready = false, ended = false, leaving = false;
+  let seekTarget = null, retry = 1000;
+
+  const now = () => Date.now() / 1000 + offset;
+  const length = () => (isFinite(v.duration) && v.duration > 0) ? v.duration : Infinity;
+  const expected = () => !state ? 0 : Math.min(length(),
+    state.paused ? state.pos : state.pos + Math.max(0, now() - state.at));
+  const atEnd = (t) => t >= length() - 0.25;
+  const fmt = (s) => { s = Math.max(0, Math.floor(s)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
+    return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(x).padStart(2, "0"); };
+  const say = (t) => { $("log").textContent = t; };
+
+  function overlay(text, opts = {}) {
+    $("ov").hidden = !text;
+    if (!text) return;
+    $("ovText").textContent = text;
+    $("join").hidden = !opts.join;
+    $("bar").hidden = opts.progress === undefined;
+    if (opts.progress !== undefined) $("barFill").style.width = Math.round(opts.progress * 100) + "%";
+    $("ovNote").textContent = opts.note || "";
+  }
+
+  function send(op) {
+    if (ws && ws.readyState === 1 && joined) ws.send(JSON.stringify({ op, pos: v.currentTime }));
+  }
+
+  function apply() {
+    if (!state || !joined || !ready) return;
+    const want = expected();
+    const finished = atEnd(want);              // shared time is past the end: show the end, never restart
+    if (Math.abs(v.currentTime - want) > (state.paused || finished ? 0.3 : 1.0)) { seekTarget = want; v.currentTime = want; }
+    if ((state.paused || finished) && !v.paused) v.pause();
+    if (!state.paused && !finished && v.paused) v.play().catch(() => overlay("Press Join to start watching.", { join: true }));
+  }
+
+  function connect() {
+    const proto = location.protocol === "https:" ? "wss:" : "ws:";
+    ws = new WebSocket(proto + "//" + location.host + "/w/" + token + "/ws");
+    ws.onopen = () => { retry = 1000; $("dot").className = "dot on"; $("conn").textContent = "connected"; };
+    ws.onclose = () => {
+      $("dot").className = "dot off"; $("conn").textContent = ended ? "ended" : "reconnecting…";
+      if (!ended && !leaving) setTimeout(connect, retry = Math.min(retry * 2, 15000));
+    };
+    ws.onmessage = (e) => {
+      let m; try { m = JSON.parse(e.data); } catch { return; }
+      if (m.op === "preparing") {
+        overlay("Getting the video ready for browsers…", { progress: m.progress || 0,
+          note: "This only happens for formats browsers cannot play directly." });
+      } else if (m.op === "ready") {
+        if (!ready) { ready = true; v.src = "/w/" + token + "/media"; }
+        if (!joined) overlay("Ready.", { join: true, note: "Your browser needs one click before it may play sound." });
+      } else if (m.op === "error") {
+        overlay("⚠️ " + m.text);
+      } else if (m.op === "ended") {
+        ended = true; v.pause(); overlay(m.text || "This watch party has ended.");
+      } else if (m.op === "state") {
+        offset = m.now - Date.now() / 1000;
+        state = { paused: m.paused, pos: m.pos, at: m.at };
+        $("viewers").textContent = m.viewers;
+        if (m.action) say((m.action === "seek" ? "Someone jumped to " : m.action === "play" ? "Playing from " : "Paused at ") + fmt(m.pos));
+        apply();
+      }
+    };
+  }
+
+  $("join").onclick = () => {
+    joined = true; overlay("");
+    if (state && !state.paused) v.play().catch(() => {});
+    apply();
+  };
+
+  // Local actions -> everyone. Events caused by apply() are ignored by comparing with the shared state.
+  // A seek we made ourselves lands where we aimed; anything else came from this viewer's hand.
+  v.addEventListener("play", () => { if (state && (state.paused || atEnd(expected()))) send("play"); });
+  v.addEventListener("pause", () => { if (state && !state.paused && !v.ended && !atEnd(expected())) send("pause"); });
+  v.addEventListener("seeked", () => {
+    if (seekTarget !== null && Math.abs(v.currentTime - seekTarget) < 0.5) { seekTarget = null; return; }
+    seekTarget = null;
+    if (!state || Math.abs(v.currentTime - expected()) > 0.5) send("seek");
+  });
+  v.addEventListener("ended", () => { if (state && !state.paused) send("pause"); });
+
+  // Check in every 10 s; the server only counts pages that do. Leaving the page says goodbye at once.
+  setInterval(() => { if (ws && ws.readyState === 1) ws.send(JSON.stringify({ op: "ping" })); }, 10000);
+  window.addEventListener("pagehide", () => {
+    leaving = true;
+    if (ws && ws.readyState === 1) { try { ws.send(JSON.stringify({ op: "bye" })); ws.close(); } catch {} }
+  });
+  window.addEventListener("pageshow", (e) => { if (e.persisted && leaving) { leaving = false; connect(); } });
+  connect();
+})();
+</script>
+</body>
+</html>

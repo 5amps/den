@@ -131,7 +131,7 @@ class Video(commands.Cog):
         await interaction.response.defer(ephemeral=True)
         folders = self.music.library_dirs("video.library_dirs")
         if not folders:
-            raise UserError("No valid folders are set in `video.library_dirs` in config.toml.")
+            raise UserError("No video folder is set yet. The bot owner can pick one with `/library setup`.")
         added, removed, total = await self.music.rescan("video", folders, VIDEO_EXTENSIONS, "video.extensions")
         await interaction.followup.send(f"Videos: {total} file(s). {added} new, {removed} removed.", ephemeral=True)
 
