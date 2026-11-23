@@ -72,7 +72,7 @@ async def main() -> None:
         cfg = Config({"bot": {"data_dir": str(tmp)}, "modules": {m: True for m in KNOWN_MODULES},
                       "antispam": {"block_links": True, "allowed_domains": ["youtube.com"]},
                       "rsvp": {"refresh_seconds": 0.05}}, tmp / "config.toml")
-        bot = botmod.PotatoBot(cfg)
+        bot = botmod.DenBot(cfg)
         await bot.prepare()
 
         print("all modules")

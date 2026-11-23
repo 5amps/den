@@ -1,4 +1,4 @@
-"""Potato Bot entry point.
+"""Den entry point.
 
     python bot.py            run the bot
     python bot.py --check    validate config, database and modules without connecting
@@ -112,7 +112,7 @@ class Tree(app_commands.CommandTree):
         await reply(interaction, message)
 
 
-class PotatoBot(commands.Bot):
+class DenBot(commands.Bot):
     def __init__(self, cfg: Config):
         intents = build_intents(cfg)
         # Keep the member cache tiny: no startup chunking, only members sitting in voice.
@@ -276,7 +276,7 @@ def disable_blocked_modules(cfg: Config, refused: set[str]) -> list[str]:
 # ---------------------------------------------------------------------- run modes
 async def run_bot(cfg: Config) -> int:
     token = cfg.token
-    bot = PotatoBot(cfg)
+    bot = DenBot(cfg)
     needed = privileged_in_use(bot.intents)
     if needed:
         log.info("Privileged intents in use (enable them in the Developer Portal): %s", ", ".join(needed))
@@ -318,7 +318,7 @@ async def run_bot(cfg: Config) -> int:
 
 async def run_check(cfg: Config) -> int:
     """Offline self-test: everything except the network connection."""
-    bot = PotatoBot(cfg)
+    bot = DenBot(cfg)
     try:
         await bot.prepare()
         try:
@@ -350,7 +350,7 @@ async def run_check(cfg: Config) -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Potato Bot")
+    parser = argparse.ArgumentParser(description="Den")
     parser.add_argument("--config", help="path to a config file (default: config.toml)")
     parser.add_argument("--check", action="store_true", help="validate setup without connecting")
     args = parser.parse_args()

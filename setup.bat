@@ -1,9 +1,9 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-title Potato Bot setup
+title Den setup
 
-echo === Potato Bot setup ===
+echo === Den setup ===
 
 rem ---- find Python 3.11+ ----
 set "PY="

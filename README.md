@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🥔 Potato Bot
+# 🏠 Den
 
 **One Discord bot for music, tickets, events, anti-raid, anti-spam and moderation.<br>
 Small enough to run on an old PC. Yours, on your own machine.**
@@ -44,7 +44,7 @@ moderation, one for events. Each one is somebody else's server holding your data
 features are often behind a subscription. Self-hosted alternatives usually want Docker, a
 database server and a separate Java audio server.
 
-Potato Bot is the opposite trade: one small program, on a PC you already own.
+Den is the opposite trade: one small program, on a PC you already own.
 
 - **Local first.** Your music plays from your own folders. Settings, tickets, warnings and
   events live in a single SQLite file in `data/`. Nothing is sent anywhere except Discord.
@@ -388,7 +388,7 @@ CPU figures are a share of **one** core.
 
 So with music playing, the bot and ffmpeg together use roughly **80 MB of RAM**.
 
-**On an actual potato:** this test CPU is several times faster per core than an old dual-core
+**On an old PC:** this test CPU is several times faster per core than an old dual-core
 laptop chip. Expect the music figures to be roughly 3 to 6 times higher there, which still
 leaves Opus passthrough at a few percent and mp3 playback around 5 to 10 % of one core. RAM does
 not change with CPU speed. These slower-CPU figures are an estimate, not a measurement.
@@ -457,7 +457,7 @@ On Linux use `.venv/bin/python`. Live checks once the bot is online:
 ## Folder layout
 
 ```
-potato-bot/
+den/
   bot.py              entry point: config, database, module loading, reconnect, exit codes
   config.example.toml template for all settings, commented
   config.toml         your copy, created on first start (not uploaded)

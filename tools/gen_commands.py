@@ -25,7 +25,7 @@ async def build() -> str:
         # Every module on, YouTube on, so the reference covers the full command set.
         cfg = Config({"bot": {"data_dir": folder}, "modules": {m: True for m in KNOWN_MODULES},
                       "music": {"youtube": True}}, Path(folder) / "config.toml")
-        bot = botmod.PotatoBot(cfg)
+        bot = botmod.DenBot(cfg)
         await bot.prepare()
         sections = helpdata.collect(bot)
         await bot.shutdown()

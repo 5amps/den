@@ -170,9 +170,9 @@ async def test_proc() -> None:
 def test_config(tmp: Path) -> None:
     print("config")
     env = tmp / ".env"
-    env.write_text('# comment\nPOTATO_A=1\nPOTATO_B="two words"\nexport POTATO_C=3\n', encoding="utf-8")
+    env.write_text('# comment\nDEN_A=1\nDEN_B="two words"\nexport DEN_C=3\n', encoding="utf-8")
     load_env(env)
-    ok(".env parsing", (os.environ["POTATO_A"], os.environ["POTATO_B"], os.environ["POTATO_C"]) == ("1", "two words", "3"))
+    ok(".env parsing", (os.environ["DEN_A"], os.environ["DEN_B"], os.environ["DEN_C"]) == ("1", "two words", "3"))
     good = tmp / "good.toml"
     good.write_text("[bot]\nmessage_cache = 10\n[modules]\nmusic = true\nrsvp = false\n", encoding="utf-8")
     cfg = load_config(good)

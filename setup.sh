@@ -1,9 +1,9 @@
 #!/usr/bin/env sh
-# Potato Bot setup for Linux.
+# Den setup for Linux.
 set -u
 cd "$(dirname "$0")" || exit 1
 
-echo "=== Potato Bot setup ==="
+echo "=== Den setup ==="
 
 PY=""
 for candidate in python3.13 python3.12 python3.11 python3 python; do

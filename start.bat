@@ -1,7 +1,7 @@
 @echo off
 setlocal enabledelayedexpansion
 cd /d "%~dp0"
-title Potato Bot
+title Den
 
 if not exist ".venv\Scripts\python.exe" (
     echo The bot is not set up yet. Run setup.bat first.

@@ -91,7 +91,7 @@ async def main() -> None:
         cfg = Config({"bot": {"data_dir": str(tmp / "data")},
                       "modules": {"music": True, "video": True, "watch": True},
                       "watch": {"port": port, "bind": "127.0.0.1"}}, tmp / "config.toml")
-        bot = botmod.PotatoBot(cfg)
+        bot = botmod.DenBot(cfg)
         await bot.prepare()
         cog = bot.get_cog("Watch")
         ok("watch module loads", cog is not None)

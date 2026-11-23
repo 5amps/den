@@ -1,4 +1,4 @@
-# Potato Bot configuration.
+# Den configuration.
 # This is the template. On first start it is copied to config.toml, which is yours to edit
 # and is never uploaded to GitHub.
 # Lines starting with # are comments. Restart the bot (or use /restart) after editing.
